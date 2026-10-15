@@ -1,0 +1,277 @@
+@define MUL3OP_MPY    0
+@define MUL3OP_MPYSU  1
+@define MUL3OP_MAC    2
+@define MUL3OP_MACUS  3
+@define MUL3OP_MAA    4
+@define MUL3OP_MACUU  5
+@define MUL3OP_MACSU  6
+@define MUL3OP_MAASU  7
+
+@define MUL2OP_MPY    0
+@define MUL2OP_MAC    1
+@define MUL2OP_MAA    2
+@define MUL2OP_MACSU  3
+
+@define SUMBASE_ZR    0
+@define SUMBASE_ACC   1
+@define SUMBASE_SV    2
+@define SUMBASE_SVR   3
+
+macro MulAccAdd(acc, prod)
+{
+	local result:8;
+	Add40(result, acc, prod);
+	SatAndSetAccAndFlag(acc, result);
+}
+
+macro MulAccAddAligned(acc, prod)
+{
+	local result:8;
+	local tmp:8 = prod s>> 16;
+	Add40(result, acc, tmp);
+	SatAndSetAccAndFlag(acc, result);
+}
+
+macro MulMpy(x_src, y_src)
+{
+	x0 = x_src; y0 = y_src; HwMultiplySS(p0, x0, y0);
+}
+
+# Note: Sign convention is swapped! Mpysu and friends use US
+macro MulMpysu(x_src, y_src)
+{
+	x0 = x_src; y0 = y_src; HwMultiplyUS(p0, x0, y0);
+}
+
+macro MulMac(x_src, y_src, acc, prod)
+{
+	x0 = x_src; y0 = y_src; MulAccAdd(acc, prod); HwMultiplySS(p0, x0, y0);
+}
+
+macro MulMacus(x_src, y_src, acc, prod)
+{
+	x0 = x_src; y0 = y_src; MulAccAdd(acc, prod); HwMultiplySU(p0, x0, y0);
+}
+
+macro MulMaa(x_src, y_src, acc, prod)
+{
+	x0 = x_src; y0 = y_src; MulAccAddAligned(acc, prod); HwMultiplySS(p0, x0, y0);
+}
+
+macro MulMacsu(x_src, y_src, acc, prod)
+{
+	x0 = x_src; y0 = y_src; MulAccAdd(acc, prod); HwMultiplyUS(p0, x0, y0);
+}
+
+macro MulMacuu(x_src, y_src, acc, prod)
+{
+	x0 = x_src; y0 = y_src; MulAccAdd(acc, prod); HwMultiplyUU(p0, x0, y0);
+}
+
+macro MulMaasu(x_src, y_src, acc, prod)
+{
+	x0 = x_src; y0 = y_src; MulAccAddAligned(acc, prod); HwMultiplyUS(p0, x0, y0);
+}
+
+HwMul0:"ss" is x0_uns=0 & y0_uns=0 { HwMultiplySS(p0, x0, y0); }
+HwMul0:"su" is x0_uns=1 & y0_uns=0 { HwMultiplyUS(p0, x0, y0); }
+HwMul0:"us" is x0_uns=0 & y0_uns=1 { HwMultiplySU(p0, x0, y0); }
+HwMul0:"uu" is x0_uns=1 & y0_uns=1 { HwMultiplyUU(p0, x0, y0); }
+
+HwMul1:"ss" is x1_uns=0 & y1_uns=0 { HwMultiplySS(p1, x1, y1); }
+HwMul1:"su" is x1_uns=1 & y1_uns=0 { HwMultiplyUS(p1, x1, y1); }
+HwMul1:"us" is x1_uns=0 & y1_uns=1 { HwMultiplySU(p1, x1, y1); }
+HwMul1:"uu" is x1_uns=1 & y1_uns=1 { HwMultiplyUU(p1, x1, y1); }
+
+HwMulMul:HwMul0^HwMul1 is HwMul0 & HwMul1 {}
+
+MmaMMMM:"x<-"^ArpStepi, "y<-"^ArpStepj is ArpStepi & ArpStepj
+{
+	local x_addr:2 = ArpStepi; local y_addr:2 = ArpStepj;
+	x0 = *[data]:2 x_addr; x1 = *[data]:2 x_addr+1;
+	y0 = *[data]:2 y_addr; y1 = *[data]:2 y_addr+1;
+}
+
+MmaMYMY:"x<-"^ArStep is ArStep
+{
+	local addr:2 = ArStep;
+	x0 = *[data]:2 addr; x1 = *[data]:2 addr+1;
+}
+
+PSumAcc:b0 is sumacc=0 & b0 { export b0; }
+PSumAcc:b1 is sumacc=1 & b1 { export b1; }
+PSumAcc:a0 is sumacc=2 & a0 { export a0; }
+PSumAcc:a1 is sumacc=3 & a1 { export a1; }
+
+PSumBase:"0" is sumbase=$(SUMBASE_ZR) { local tmp:8 = 0; export tmp; }
+PSumBase:"acc" is sumbase=$(SUMBASE_ACC) & PSumAcc { export PSumAcc; }
+PSumBase:"sv" is sumbase=$(SUMBASE_SV) { local tmp:8 = sext(sv); tmp = tmp << 16; export tmp; }
+PSumBase:"svr" is sumbase=$(SUMBASE_SVR) { local tmp:8 = sext(sv); tmp = (tmp << 16) + 0x8000; export tmp; }
+
+PSumP0:"p0" is p0_a=0 & PToBus40 [ pname=0; ] { export PToBus40; }
+PSumP0:"p0a" is p0_a=1 & PToBus40 [ pname=0; ] { local tmp:8 = PToBus40 s>> 16; export tmp; }
+PSumP1:"p1" is p1_a=0 & P2ToBus40 [ pname2=1; ] { export P2ToBus40; }
+PSumP1:"p1a" is p1_a=1 & P2ToBus40 [ pname2=1; ] { local tmp:8 = P2ToBus40 s>> 16; export tmp; }
+
+PSum:PSumBase+PSumP0+PSumP1, PSumAcc is p0_sub=0 & p1_sub=0 & PSumBase & PSumP0 & PSumP1 & PSumAcc
+{
+	local a:8 = PSumP0; local b:8 = PSumP1; local c:8 = PSumBase;
+	Add40(c, c, a); Add40(c, c, b);
+	SatAndSetAccAndFlag(PSumAcc, c);
+}
+
+PSum:PSumBase+PSumP0-PSumP1, PSumAcc is p0_sub=0 & p1_sub=1 & PSumBase & PSumP0 & PSumP1 & PSumAcc
+{
+	local a:8 = PSumP0; local b:8 = PSumP1; local c:8 = PSumBase;
+	Add40(c, c, a); Sub40(c, c, b);
+	SatAndSetAccAndFlag(PSumAcc, c);
+}
+
+PSum:PSumBase-PSumP0+PSumP1, PSumAcc is p0_sub=1 & p1_sub=0 & PSumBase & PSumP0 & PSumP1 & PSumAcc
+{
+	local a:8 = PSumP0; local b:8 = PSumP1; local c:8 = PSumBase;
+	Sub40(c, c, a); Add40(c, c, b);
+	SatAndSetAccAndFlag(PSumAcc, c);
+}
+
+PSum:PSumBase-PSumP0-PSumP1, PSumAcc is p0_sub=1 & p1_sub=1 & PSumBase & PSumP0 & PSumP1 & PSumAcc
+{
+	local a:8 = PSumP0; local b:8 = PSumP1; local c:8 = PSumBase;
+	Sub40(c, c, a); Sub40(c, c, b);
+	SatAndSetAccAndFlag(PSumAcc, c);
+}
+
+with ins2: (instr_5_7=0x00 & instr_12_15=8) ...
+{
+	:"mpy" MemRnStep, Imm16, Ax11 is Mul3_8=$(MUL3OP_MPY) & StepMode3 & MemRnStep & Ax11; Imm16 [ stepmode = StepMode3; ]
+	{ MulMpy(Imm16, MemRnStep); }
+	:"mpysu" MemRnStep, Imm16, Ax11 is Mul3_8=$(MUL3OP_MPYSU) & StepMode3 & MemRnStep & Ax11; Imm16 [ stepmode = StepMode3; ]
+	{ MulMpysu(Imm16, MemRnStep); }
+	:"mac" MemRnStep, Imm16, Ax11 is Mul3_8=$(MUL3OP_MAC) & StepMode3 & MemRnStep & Ax11 & PToBus40; Imm16 [ stepmode = StepMode3; pname=0; ]
+	{ MulMac(Imm16, MemRnStep, Ax11, PToBus40); }
+	:"macus" MemRnStep, Imm16, Ax11 is Mul3_8=$(MUL3OP_MACUS) & StepMode3 & MemRnStep & Ax11 & PToBus40; Imm16 [ stepmode = StepMode3; pname=0; ]
+	{ MulMacus(Imm16, MemRnStep, Ax11, PToBus40); }
+	:"maa" MemRnStep, Imm16, Ax11 is Mul3_8=$(MUL3OP_MAA) & StepMode3 & MemRnStep & Ax11 & PToBus40; Imm16 [ stepmode = StepMode3; pname=0; ]
+	{ MulMaa(Imm16, MemRnStep, Ax11, PToBus40); }
+	:"macsu" MemRnStep, Imm16, Ax11 is Mul3_8=$(MUL3OP_MACSU) & StepMode3 & MemRnStep & Ax11 & PToBus40; Imm16 [ stepmode = StepMode3; pname=0; ]
+	{ MulMacsu(Imm16, MemRnStep, Ax11, PToBus40); }
+	:"macuu" MemRnStep, Imm16, Ax11 is Mul3_8=$(MUL3OP_MACUU) & StepMode3 & MemRnStep & Ax11 & PToBus40; Imm16 [ stepmode = StepMode3; pname=0; ]
+	{ MulMacuu(Imm16, MemRnStep, Ax11, PToBus40); }
+	:"maasu" MemRnStep, Imm16, Ax11 is Mul3_8=$(MUL3OP_MAASU) & StepMode3 & MemRnStep & Ax11 & PToBus40; Imm16 [ stepmode = StepMode3; pname=0; ]
+	{ MulMaasu(Imm16, MemRnStep, Ax11, PToBus40); }
+}
+
+with ins: instr_5_7=0x20>>5 & instr_12_15=8
+{
+	:"mpy" y0, MemRnStep, Ax11 is Mul3_8=$(MUL3OP_MPY) & y0 & StepMode3 & MemRnStep & Ax11 [ stepmode = StepMode3; ]
+	{ MulMpy(MemRnStep, y0); }
+	:"mpysu" y0, MemRnStep, Ax11 is Mul3_8=$(MUL3OP_MPYSU) & y0 & StepMode3 & MemRnStep & Ax11 [ stepmode = StepMode3; ]
+	{ MulMpysu(MemRnStep, y0); }
+	:"mac" y0, MemRnStep, Ax11 is Mul3_8=$(MUL3OP_MAC) & y0 & StepMode3 & MemRnStep & Ax11 & PToBus40 [ stepmode = StepMode3; pname=0; ]
+	{ MulMac(MemRnStep, y0, Ax11, PToBus40); }
+	:"macus" y0, MemRnStep, Ax11 is Mul3_8=$(MUL3OP_MACUS) & y0 & StepMode3 & MemRnStep & Ax11 & PToBus40 [ stepmode = StepMode3; pname=0; ]
+	{ MulMacus(MemRnStep, y0, Ax11, PToBus40); }
+	:"maa" y0, MemRnStep, Ax11 is Mul3_8=$(MUL3OP_MAA) & y0 & StepMode3 & MemRnStep & Ax11 & PToBus40 [ stepmode = StepMode3; pname=0; ]
+	{ MulMaa(MemRnStep, y0, Ax11, PToBus40); }
+	:"macsu" y0, MemRnStep, Ax11 is Mul3_8=$(MUL3OP_MACSU) & y0 & StepMode3 & MemRnStep & Ax11 & PToBus40 [ stepmode = StepMode3; pname=0; ]
+	{ MulMacsu(MemRnStep, y0, Ax11, PToBus40); }
+	:"macuu" y0, MemRnStep, Ax11 is Mul3_8=$(MUL3OP_MACUU) & y0 & StepMode3 & MemRnStep & Ax11 & PToBus40 [ stepmode = StepMode3; pname=0; ]
+	{ MulMacuu(MemRnStep, y0, Ax11, PToBus40); }
+	:"maasu" y0, MemRnStep, Ax11 is Mul3_8=$(MUL3OP_MAASU) & y0 & StepMode3 & MemRnStep & Ax11 & PToBus40 [ stepmode = StepMode3; pname=0; ]
+	{ MulMaasu(MemRnStep, y0, Ax11, PToBus40); }
+}
+
+with ins: instr_5_7=0x40>>5 & instr_12_15=8
+{
+	:"mpy" y0, RegSrc, Ax11 is Mul3_8=$(MUL3OP_MPY) & y0 & RegSrc & Ax11 & Reg0 [ regname_src = Reg0; ]
+	{ MulMpy(RegSrc, y0); }
+	:"mpysu" y0, RegSrc, Ax11 is Mul3_8=$(MUL3OP_MPYSU) & y0 & RegSrc & Ax11 & Reg0 [ regname_src = Reg0; ]
+	{ MulMpysu(RegSrc, y0); }
+	:"mac" y0, RegSrc, Ax11 is Mul3_8=$(MUL3OP_MAC) & y0 & RegSrc & Ax11 & Reg0 & PToBus40 [ regname_src = Reg0; pname=0; ]
+	{ MulMac(RegSrc, y0, Ax11, PToBus40); }
+	:"macus" y0, RegSrc, Ax11 is Mul3_8=$(MUL3OP_MACUS) & y0 & RegSrc & Ax11 & Reg0 & PToBus40 [ regname_src = Reg0; pname=0; ]
+	{ MulMacus(RegSrc, y0, Ax11, PToBus40); }
+	:"maa" y0, RegSrc, Ax11 is Mul3_8=$(MUL3OP_MAA) & y0 & RegSrc & Ax11 & Reg0 & PToBus40 [ regname_src = Reg0; pname=0; ]
+	{ MulMaa(RegSrc, y0, Ax11, PToBus40); }
+	:"macsu" y0, RegSrc, Ax11 is Mul3_8=$(MUL3OP_MACSU) & y0 & RegSrc & Ax11 & Reg0 & PToBus40 [ regname_src = Reg0; pname=0; ]
+	{ MulMacsu(RegSrc, y0, Ax11, PToBus40); }
+	:"macuu" y0, RegSrc, Ax11 is Mul3_8=$(MUL3OP_MACUU) & y0 & RegSrc & Ax11 & Reg0 & PToBus40 [ regname_src = Reg0; pname=0; ]
+	{ MulMacuu(RegSrc, y0, Ax11, PToBus40); }
+	:"maasu" y0, RegSrc, Ax11 is Mul3_8=$(MUL3OP_MAASU) & y0 & RegSrc & Ax11 & Reg0 & PToBus40 [ regname_src = Reg0; pname=0; ]
+	{ MulMaasu(RegSrc, y0, Ax11, PToBus40); }
+}
+
+with ins: instr_7_7=0x0 & instr_12_15=0xD
+{
+	:"mpy" MemRnStepBase, MemRnStep2Base, Ax11 is Mul3_8=$(MUL3OP_MPY) & MemRnStepBase & MemRnStep2Base & Ax11 & StepMode3 & StepMode5 & R0123_0 & R45_2
+	[ rn=R45_2+4; rn2=R0123_0; stepmode=StepMode5; stepmode2=StepMode3; ] { MulMpy(MemRnStep2Base, MemRnStepBase); }
+	:"mpysu" MemRnStepBase, MemRnStep2Base, Ax11 is Mul3_8=$(MUL3OP_MPYSU) & MemRnStepBase & MemRnStep2Base & Ax11 & StepMode3 & StepMode5 & R0123_0 & R45_2
+	[ rn=R45_2+4; rn2=R0123_0; stepmode=StepMode5; stepmode2=StepMode3; ] { MulMpysu(MemRnStep2Base, MemRnStepBase); }
+	:"mac" MemRnStepBase, MemRnStep2Base, Ax11 is Mul3_8=$(MUL3OP_MAC) & MemRnStepBase & MemRnStep2Base & Ax11 & StepMode3 & StepMode5 & R0123_0 & R45_2 & PToBus40
+	[ rn=R45_2+4; rn2=R0123_0; stepmode=StepMode5; stepmode2=StepMode3; pname=0; ] { MulMac(MemRnStep2Base, MemRnStepBase, Ax11, PToBus40); }
+	:"macus" MemRnStepBase, MemRnStep2Base, Ax11 is Mul3_8=$(MUL3OP_MACUS) & MemRnStepBase & MemRnStep2Base & Ax11 & StepMode3 & StepMode5 & R0123_0 & R45_2 & PToBus40
+	[ rn=R45_2+4; rn2=R0123_0; stepmode=StepMode5; stepmode2=StepMode3; pname=0; ] { MulMacus(MemRnStep2Base, MemRnStepBase, Ax11, PToBus40); }
+	:"maa" MemRnStepBase, MemRnStep2Base, Ax11 is Mul3_8=$(MUL3OP_MAA) & MemRnStepBase & MemRnStep2Base & Ax11 & StepMode3 & StepMode5 & R0123_0 & R45_2 & PToBus40
+	[ rn=R45_2+4; rn2=R0123_0; stepmode=StepMode5; stepmode2=StepMode3; pname=0; ] { MulMaa(MemRnStep2Base, MemRnStepBase, Ax11, PToBus40); }
+	:"macsu" MemRnStepBase, MemRnStep2Base, Ax11 is Mul3_8=$(MUL3OP_MACSU) & MemRnStepBase & MemRnStep2Base & Ax11 & StepMode3 & StepMode5 & R0123_0 & R45_2 & PToBus40
+	[ rn=R45_2+4; rn2=R0123_0; stepmode=StepMode5; stepmode2=StepMode3; pname=0; ] { MulMacsu(MemRnStep2Base, MemRnStepBase, Ax11, PToBus40); }
+	:"macuu" MemRnStepBase, MemRnStep2Base, Ax11 is Mul3_8=$(MUL3OP_MACUU) & MemRnStepBase & MemRnStep2Base & Ax11 & StepMode3 & StepMode5 & R0123_0 & R45_2 & PToBus40
+	[ rn=R45_2+4; rn2=R0123_0; stepmode=StepMode5; stepmode2=StepMode3; pname=0; ] { MulMacuu(MemRnStep2Base, MemRnStepBase, Ax11, PToBus40); }
+	:"maasu" MemRnStepBase, MemRnStep2Base, Ax11 is Mul3_8=$(MUL3OP_MAASU) & MemRnStepBase & MemRnStep2Base & Ax11 & StepMode3 & StepMode5 & R0123_0 & R45_2 & PToBus40
+	[ rn=R45_2+4; rn2=R0123_0; stepmode=StepMode5; stepmode2=StepMode3; pname=0; ] { MulMaasu(MemRnStep2Base, MemRnStepBase, Ax11, PToBus40); }
+}
+
+with ins: instr_8_8=0x0 & instr_12_15=0xE
+{
+	:"mpy" y0, MemImm8, Ax11 is Mul2=$(MUL2OP_MPY) & y0 & MemImm8 & Ax11
+	{ MulMpy(MemImm8, y0); }
+	:"mac" y0, MemImm8, Ax11 is Mul2=$(MUL2OP_MAC) & y0 & MemImm8 & Ax11 & PToBus40 [ pname=0; ]
+	{ MulMac(MemImm8, y0, Ax11, PToBus40); }
+	:"maa" y0, MemImm8, Ax11 is Mul2=$(MUL2OP_MAA) & y0 & MemImm8 & Ax11 & PToBus40 [ pname=0; ]
+	{ MulMaa(MemImm8, y0, Ax11, PToBus40); }
+	:"macsu" y0, MemImm8, Ax11 is Mul2=$(MUL2OP_MACSU) & y0 & MemImm8 & Ax11 & PToBus40 [ pname=0; ]
+	{ MulMacsu(MemImm8, y0, Ax11, PToBus40); }
+}
+
+ins:"mpyi" y0, Imm8s is instr_8_15=0x8 & y0 & Imm8s { MulMpy(Imm8s, y0); }
+
+ins:"app" PSum is instr_4_15=0x5DC & instr_0_1 & Ab2 & PSum
+[ sumbase=$(SUMBASE_ZR); p0_sub=0; p0_a=0; p1_sub=instr_0_1>>1; p1_a=instr_0_1&0x1; sumacc=Ab2; ] { build PSum; }
+
+ins:"app" PSum is instr_4_15=0x459 & instr_0_1 & Ab2 & PSum
+[ sumbase=$(SUMBASE_ACC); p0_sub=0; p0_a=instr_0_1&0x1; p1_sub=0; p1_a=instr_0_1>>1; sumacc=Ab2; ] { build PSum; }
+
+ins:"mma"^HwMulMul MmaMMMM, PSum is instr_9_15=0xCA00>>9 & instr_0_0 & instr_1_1 & instr_2_2 & instr_8_8 & ArpRn1_5 & ArpStep1_3 & ArpStep1_4 & Ab6 & HwMulMul & MmaMMMM & PSum
+[
+	arrn=ArpRn1_5; arstep=ArpStep1_3; arstep2=ArpStep1_4;
+	sumbase=$(SUMBASE_ACC); p0_sub=~instr_2_2; p0_a=instr_1_1&(~instr_8_8); p1_sub=~instr_2_2; p1_a=(~instr_8_8)|instr_1_1; sumacc=Ab6;
+	x0_uns=~instr_8_8; y0_uns=0; x1_uns=~instr_0_0; y1_uns=instr_0_0;
+] { build PSum; build MmaMMMM; build HwMulMul; }
+
+ins:"mma"^HwMulMul MmaMMMM, PSum is instr_9_15=0xC800>>9 & instr_8_8 & ArpStep2_0 & ArpStep2_2 & ArpRn2_4 & Ab6 & HwMulMul & MmaMMMM & PSum
+[
+	arrn=ArpRn2_4; arstep=ArpStep2_0; arstep2=ArpStep2_2;
+	sumbase=$(SUMBASE_ACC); p0_sub=instr_8_8; p0_a=0; p1_sub=instr_8_8; p1_a=0; sumacc=Ab6;
+	x0_uns=0; y0_uns=0; x1_uns=0; y1_uns=0;
+] { build PSum; build MmaMMMM; build HwMulMul; }
+
+ins:"mma"^HwMulMul MmaMMMM, PSum is instr_3_7=0xC8>>3 & instr_12_15=0x8 & instr_8_8 & instr_9_9 & ArpRn1_2 & ArpStep1_0 & ArpStep1_1 & Ab10 & HwMulMul & MmaMMMM & PSum
+[
+	arrn=ArpRn1_2; arstep=ArpStep1_0; arstep2=ArpStep1_1;
+	sumbase=$(SUMBASE_ACC)-instr_9_9; p0_sub=0; p0_a=0; p1_sub=~instr_9_9; p1_a=instr_8_8; sumacc=Ab10;
+	x0_uns=0; y0_uns=0; x1_uns=0; y1_uns=0;
+] { build PSum; build MmaMMMM; build HwMulMul; }
+
+ins:"mma"^HwMulMul MmaMYMY, PSum is instr_5_15=0x4DA0>>5 & instr_0_0 & instr_1_1 & Ax4 & HwMulMul & MmaMYMY & ArStep1_2 & ArRn1_3 & PSum
+[
+	arrn=ArRn1_3; arstep=ArStep1_2;
+	sumbase=$(SUMBASE_ACC); p0_sub=~instr_1_1; p0_a=0; p1_sub=~instr_1_1; p1_a=instr_0_0; sumacc=Ax4+2;
+	x0_uns=0; y0_uns=0; x1_uns=0; y1_uns=1;
+] { build PSum; build MmaMYMY; build HwMulMul; }
+
+ins:"mma"^HwMulMul MmaMYMY, PSum is instr_5_7=0xE7>>5 & instr_9_15=0x94E7>>9 & instr_0_0 & instr_1_1 & instr_2_2 & Ax8 & HwMulMul & MmaMYMY & ArStep1_3 & ArRn1_4 & PSum
+[
+	arrn=ArRn1_4; arstep=ArStep1_3;
+	sumbase=$(SUMBASE_ACC); p0_sub=~instr_2_2; p0_a=0; p1_sub=~instr_2_2; p1_a=instr_1_1; sumacc=Ax8+2;
+	x0_uns=0; y0_uns=0; x1_uns=instr_0_0; y1_uns=0;
+] { build PSum; build MmaMYMY; build HwMulMul; }

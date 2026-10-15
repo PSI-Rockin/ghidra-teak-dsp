@@ -1,0 +1,114 @@
+@define MODA4OP_SHR   0
+@define MODA4OP_SHR4  1
+@define MODA4OP_SHL   2
+@define MODA4OP_SHL4  3
+@define MODA4OP_ROR   4
+@define MODA4OP_ROL   5
+@define MODA4OP_CLR   6
+@define MODA4OP_NOT   8
+@define MODA4OP_NEG   9
+@define MODA4OP_RND   10
+@define MODA4OP_PACR  11
+@define MODA4OP_CLRR  12
+@define MODA4OP_INC   13
+@define MODA4OP_DEC   14
+@define MODA4OP_COPY  15
+
+@define MODA3OP_SHR   0
+@define MODA3OP_SHR4  1
+@define MODA3OP_SHL   2
+@define MODA3OP_SHL4  3
+@define MODA3OP_ROR   4
+@define MODA3OP_ROL   5
+@define MODA3OP_CLR   6
+@define MODA3OP_CLRR  7
+
+macro ModaShr(reg, shift)
+{
+	ShiftRight40(reg, reg, shift);
+}
+
+macro ModaShl(reg, shift)
+{
+	ShiftLeft40(reg, reg, shift);
+}
+
+macro ModaClr(reg)
+{
+	local tmp:8 = 0;
+	SetAccAndFlag(reg, tmp);
+}
+
+macro ModaClrr(reg)
+{
+	local tmp:8 = 0x8000;
+	SetAccAndFlag(reg, tmp);
+}
+
+macro ModaNot(reg)
+{
+	local tmp:8 = ~reg;
+	SetAccAndFlag(reg, tmp);
+}
+
+macro ModaNeg(reg)
+{
+	local tmp:8 = reg;
+	fc0 = tmp != 0;
+	fv = tmp == 0xFFFFFF8000000000;
+	fvl = fvl | fv;
+	SatAndSetAccAndFlag(reg, ~tmp);
+}
+
+macro ModaRnd(reg)
+{
+	local result:8;
+	Add40(result, reg, 0x8000);
+	SatAndSetAccAndFlag(reg, result);
+}
+
+macro ModaInc(reg)
+{
+	local result:8;
+	Add40(result, reg, 1);
+	SatAndSetAccAndFlag(reg, result);
+}
+
+macro ModaDec(reg)
+{
+	local result:8;
+	Sub40(result, reg, 1);
+	SatAndSetAccAndFlag(reg, result);
+}
+
+macro ModaCopy(dst, src)
+{
+	SatAndSetAccAndFlag(dst, src);
+}
+
+with ins: instr_8_11=0x7 & instr_13_15=0x6700>>13
+{
+	:"shr"^Cond Ax12 is Moda4=$(MODA4OP_SHR) & Cond & Ax12 { build Cond; ModaShr(Ax12, 1); }
+	:"shr4"^Cond Ax12 is Moda4=$(MODA4OP_SHR4) & Cond & Ax12 { build Cond; ModaShr(Ax12, 4); }
+	:"shl"^Cond Ax12 is Moda4=$(MODA4OP_SHL) & Cond & Ax12 { build Cond; ModaShl(Ax12, 1); }
+	:"shl4"^Cond Ax12 is Moda4=$(MODA4OP_SHL4) & Cond & Ax12 { build Cond; ModaShl(Ax12, 4); }
+	:"clr"^Cond Ax12 is Moda4=$(MODA4OP_CLR) & Cond & Ax12 { build Cond; ModaClr(Ax12); }
+	:"not"^Cond Ax12 is Moda4=$(MODA4OP_NOT) & Cond & Ax12 { build Cond; ModaNot(Ax12); }
+	:"neg"^Cond Ax12 is Moda4=$(MODA4OP_NEG) & Cond & Ax12 { build Cond; ModaNeg(Ax12); }
+	:"rnd"^Cond Ax12 is Moda4=$(MODA4OP_RND) & Cond & Ax12 { build Cond; ModaRnd(Ax12); }
+	:"clrr"^Cond Ax12 is Moda4=$(MODA4OP_CLRR) & Cond & Ax12 { build Cond; ModaClrr(Ax12); }
+	:"inc"^Cond Ax12 is Moda4=$(MODA4OP_INC) & Cond & Ax12 { build Cond; ModaInc(Ax12); }
+	:"dec"^Cond Ax12 is Moda4=$(MODA4OP_DEC) & Cond & Ax12 { build Cond; ModaDec(Ax12); }
+	:"copy"^Cond a0 is Moda4=$(MODA4OP_COPY) & Cond & instr_12_12=0 & a0 { build Cond; ModaCopy(a0, a1); }
+	:"copy"^Cond a1 is Moda4=$(MODA4OP_COPY) & Cond & instr_12_12=1 & a1 { build Cond; ModaCopy(a1, a0); }
+}
+
+with ins: instr_7_11=0x0F00>>7 & instr_13_15=0x6F00>>13
+{
+	:"shr"^Cond Bx12 is Moda3=$(MODA3OP_SHR) & Cond & Bx12 { build Cond; ModaShr(Bx12, 1); }
+	:"shr4"^Cond Bx12 is Moda3=$(MODA3OP_SHR4) & Cond & Bx12 { build Cond; ModaShr(Bx12, 4); }
+	:"shl"^Cond Bx12 is Moda3=$(MODA3OP_SHL) & Cond & Bx12 { build Cond; ModaShl(Bx12, 1); }
+	:"shl4"^Cond Bx12 is Moda3=$(MODA3OP_SHL4) & Cond & Bx12 { build Cond; ModaShl(Bx12, 4); }
+	:"clr"^Cond Bx12 is Moda3=$(MODA3OP_CLR) & Cond & Bx12 { build Cond; ModaClr(Bx12); }
+	:"clrr"^Cond Bx12 is Moda3=$(MODA3OP_CLRR) & Cond & Bx12 { build Cond; ModaClrr(Bx12); }
+}

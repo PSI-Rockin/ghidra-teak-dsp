@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<language_definitions>
+  <language processor="Teak"
+            endian="little"
+            size="16"
+			version="0.1"
+            variant="default"
+            slafile="teak.sla"
+            processorspec="teak.pspec"
+            id="Teak:LE:16:default">
+	<description>CEVA Teak DSP</description>
+    <compiler name="default" spec="teak.cspec" id="default"/>
+  </language>
+</language_definitions>

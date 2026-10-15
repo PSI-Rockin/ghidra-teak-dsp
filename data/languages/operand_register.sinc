@@ -1,0 +1,118 @@
+@define OPREG_R0     0
+@define OPREG_R1     1
+@define OPREG_R2     2
+@define OPREG_R3     3
+@define OPREG_R4     4
+@define OPREG_R5     5
+@define OPREG_R7     6
+@define OPREG_Y0     7
+@define OPREG_ST0    8
+@define OPREG_ST1    9
+@define OPREG_ST2    10
+@define OPREG_P      11
+@define OPREG_PC     12
+@define OPREG_SP     13
+@define OPREG_CFGI   14
+@define OPREG_CFGJ   15
+@define OPREG_B0H    16
+@define OPREG_B1H    17
+@define OPREG_B0L    18
+@define OPREG_B1L    19
+@define OPREG_EXT0   20
+@define OPREG_EXT1   21
+@define OPREG_EXT2   22
+@define OPREG_EXT3   23
+@define OPREG_A0     24
+@define OPREG_A1     25
+@define OPREG_A0L    26
+@define OPREG_A1L    27
+@define OPREG_A0H    28
+@define OPREG_A1H    29
+@define OPREG_LC     30
+@define OPREG_SV     31
+
+# TODO: Replace these with more granular accesses (and also move these to operand_ctx)
+define pcodeop ReadSt0;
+define pcodeop ReadSt1;
+define pcodeop ReadSt2;
+define pcodeop WriteSt0;
+define pcodeop WriteSt1;
+define pcodeop WriteSt2;
+
+RegSrcBase: r0 is regname_src=$(OPREG_R0) & r0 { export r0; }
+RegSrcBase: r1 is regname_src=$(OPREG_R1) & r1 { export r1; }
+RegSrcBase: r2 is regname_src=$(OPREG_R2) & r2 { export r2; }
+RegSrcBase: r3 is regname_src=$(OPREG_R3) & r3 { export r3; }
+RegSrcBase: r4 is regname_src=$(OPREG_R4) & r4 { export r4; }
+RegSrcBase: r5 is regname_src=$(OPREG_R5) & r5 { export r5; }
+RegSrcBase: r7 is regname_src=$(OPREG_R7) & r7 { export r7; }
+RegSrcBase: y0 is regname_src=$(OPREG_Y0) & y0 { export y0; }
+RegSrcBase: "st0" is regname_src=$(OPREG_ST0) { local tmp:2 = ReadSt0(); export tmp; }
+RegSrcBase: "st1" is regname_src=$(OPREG_ST1) { local tmp:2 = ReadSt1(); export tmp; }
+RegSrcBase: "st2" is regname_src=$(OPREG_ST2) { local tmp:2 = ReadSt2(); export tmp; }
+RegSrcBase: sp is regname_src=$(OPREG_SP) & sp { export sp; }
+RegSrcBase: "cfgi" is regname_src=$(OPREG_CFGI) { local tmp:2 = (stepi & 0x7F) | ((modi & 0x1FF) << 7); export tmp; }
+RegSrcBase: "cfgj" is regname_src=$(OPREG_CFGJ) { local tmp:2 = (stepj & 0x7F) | ((modj & 0x1FF) << 7); export tmp; }
+RegSrcBase: Lc is regname_src=$(OPREG_LC) & Lc { export Lc; }
+RegSrcBase: sv is regname_src=$(OPREG_SV) & sv { export sv; }
+
+# TODO: MOV instructions can enable acc saturation on low/high reads
+RegSrc: "p*" is regname_src=$(OPREG_P) & PToBus40 [ pname=0; ] { local tmp:8 = PToBus40; tmp = tmp >> 16; local tmp2:2 = tmp:2; export tmp2; }
+RegSrc: b0l is regname_src=$(OPREG_B0L) & b0l { export b0l; }
+RegSrc: b0h is regname_src=$(OPREG_B0H) & b0h { export b0h; }
+RegSrc: b1l is regname_src=$(OPREG_B1L) & b1l { export b1l; }
+RegSrc: b1h is regname_src=$(OPREG_B1H) & b1h { export b1h; }
+RegSrc: a0 is regname_src=$(OPREG_A0) & a0 { local tmp:2 = trunc(a0); export tmp; }
+RegSrc: a1 is regname_src=$(OPREG_A1) & a1 { local tmp:2 = trunc(a1); export tmp; }
+RegSrc: a0l is regname_src=$(OPREG_A0L) & a0l { export a0l; }
+RegSrc: a1l is regname_src=$(OPREG_A1L) & a1l { export a1l; }
+RegSrc: a0h is regname_src=$(OPREG_A0H) & a0h { export a0h; }
+RegSrc: a1h is regname_src=$(OPREG_A1H) & a1h { export a1h; }
+RegSrc: RegSrcBase is RegSrcBase { export RegSrcBase; }
+
+# a0/a1/p0 are special-cased for ALM ops, using the full width of these registers rather than 16 bits
+RegSrcAlm: is regname_src=0 { export 0:8; } # Needed for the context-based matching to work
+RegSrcAlm: p0 is regname_src=$(OPREG_P) & p0 & PToBus40 [ pname=0; ] { export PToBus40; }
+RegSrcAlm: a0 is regname_src=$(OPREG_A0) & a0 { export a0; }
+RegSrcAlm: a1 is regname_src=$(OPREG_A1) & a1 { export a1; }
+
+RegDstBase: r0 is regname_dst=$(OPREG_R0) & r0 { r0 = bus16; }
+RegDstBase: r1 is regname_dst=$(OPREG_R1) & r1 { r1 = bus16; }
+RegDstBase: r2 is regname_dst=$(OPREG_R2) & r2 { r2 = bus16; }
+RegDstBase: r3 is regname_dst=$(OPREG_R3) & r3 { r3 = bus16; }
+RegDstBase: r4 is regname_dst=$(OPREG_R4) & r4 { r4 = bus16; }
+RegDstBase: r5 is regname_dst=$(OPREG_R5) & r5 { r5 = bus16; }
+RegDstBase: r7 is regname_dst=$(OPREG_R7) & r7 { r7 = bus16; }
+RegDstBase: y0 is regname_dst=$(OPREG_Y0) & y0 { y0 = bus16; }
+RegDstBase: sp is regname_dst=$(OPREG_SP) & sp { sp = bus16; }
+RegDstBase: "st0" is regname_dst=$(OPREG_ST0) { WriteSt0(bus16); }
+RegDstBase: "st1" is regname_dst=$(OPREG_ST1) { WriteSt1(bus16); }
+RegDstBase: "st2" is regname_dst=$(OPREG_ST2) { WriteSt2(bus16); }
+RegDstBase: "cfgi" is regname_dst=$(OPREG_CFGI) { stepi = ((bus16 & 0x7F) << 9) s>> 9; modi = bus16 >> 7; }
+RegDstBase: "cfgj" is regname_dst=$(OPREG_CFGJ) { stepj = ((bus16 & 0x7F) << 9) s>> 9; modj = bus16 >> 7; }
+RegDstBase: Lc is regname_dst=$(OPREG_LC) & Lc { Lc = bus16; }
+RegDstBase: sv is regname_dst=$(OPREG_SV) & sv { sv = bus16; }
+
+RegDst: "p*" is regname_dst=$(OPREG_P) { local tmp:8 = sext(bus16); p0 = (p0 & 0xFFFF) << tmp; }
+RegDst: b0l is regname_dst=$(OPREG_B0L) & b0l { AccLoFromBus16(b0, bus16); }
+RegDst: b0h is regname_dst=$(OPREG_B0H) & b0h { AccHiFromBus16(b0, bus16); }
+RegDst: b1l is regname_dst=$(OPREG_B1L) & b1l { AccLoFromBus16(b1, bus16); }
+RegDst: b1h is regname_dst=$(OPREG_B1H) & b1h { AccHiFromBus16(b1, bus16); }
+RegDst: a0 is regname_dst=$(OPREG_A0) & a0 { AccFromBus16(a0, bus16); }
+RegDst: a1 is regname_dst=$(OPREG_A1) & a1 { AccFromBus16(a1, bus16); }
+RegDst: a0l is regname_dst=$(OPREG_A0L) & a0l { AccLoFromBus16(a0, bus16); }
+RegDst: a1l is regname_dst=$(OPREG_A1L) & a1l { AccLoFromBus16(a1, bus16); }
+RegDst: a0h is regname_dst=$(OPREG_A0H) & a0h { AccHiFromBus16(a0, bus16); }
+RegDst: a1h is regname_dst=$(OPREG_A1H) & a1h { AccHiFromBus16(a1, bus16); }
+RegDst: RegDstBase is RegDstBase { build RegDstBase; }
+
+# Alb ops preserve unwritten bits in the accumulator and also don't support a0/a1
+RegDstAlb: b0l is regname_dst=$(OPREG_B0L) & b0l { b0l = bus16; }
+RegDstAlb: b0h is regname_dst=$(OPREG_B0H) & b0h { b0h = bus16; }
+RegDstAlb: b1l is regname_dst=$(OPREG_B1L) & b1l { b1l = bus16; }
+RegDstAlb: b1h is regname_dst=$(OPREG_B1H) & b1h { b1h = bus16; }
+RegDstAlb: a0l is regname_dst=$(OPREG_A0L) & a0l { a0l = bus16; }
+RegDstAlb: a1l is regname_dst=$(OPREG_A1L) & a1l { a1l = bus16; }
+RegDstAlb: a0h is regname_dst=$(OPREG_A0H) & a0h { a0h = bus16; }
+RegDstAlb: a1h is regname_dst=$(OPREG_A1H) & a1h { a1h = bus16; }
+RegDstAlb: RegDstBase is RegDstBase { build RegDstBase; }

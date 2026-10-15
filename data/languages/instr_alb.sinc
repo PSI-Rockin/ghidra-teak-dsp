@@ -1,0 +1,149 @@
+@define ALBOP_SET   0
+@define ALBOP_RST   1
+@define ALBOP_CHNG  2
+@define ALBOP_ADDV  3
+@define ALBOP_TST0  4
+@define ALBOP_TST1  5
+@define ALBOP_CMPV  6
+@define ALBOP_SUBV  7
+
+macro AlbSet(result, a, b)
+{
+	result = a | b;
+	fz = result == 0;
+	fm = result s< 0;
+}
+
+macro AlbRst(result, a, b)
+{
+	result = ~a & b;
+	fz = result == 0;
+	fm = result s< 0;
+}
+
+macro AlbChng(result, a, b)
+{
+	result = a ^ b;
+	fz = result == 0;
+	fm = result s< 0;
+}
+
+macro AlbAddv(result, a, b)
+{
+	result = a + b;
+	fz = result == 0;
+	fc0 = carry(a, b);
+	
+	# TODO: is there a way to simplify the logic here?
+	local a32:4 = sext(a);
+	local b32:4 = sext(b);
+	fm = (a32 + b32) s< 0;
+}
+
+macro AlbTst0(a, b)
+{
+	fz = (a & b) == 0;
+}
+
+macro AlbTst1(a, b)
+{
+	fz = (a & ~b) == 0;
+}
+
+macro AlbSubv(result, a, b)
+{
+	result = b - a;
+	fz = result == 0;
+	fc0 = a > b;
+	
+	# TODO: is there a way to simplify the logic here?
+	local a32:4 = sext(a);
+	local b32:4 = sext(b);
+	fm = (b32 - a32) s< 0;
+}
+
+macro AlbCmpv(a, b)
+{
+	local tmp:2;
+	AlbSubv(tmp, a, b);
+}
+
+# alb MemImm8
+with ins2: (instr_8_8=0x1 & instr_12_15=0xE) ...
+{
+	:"set" Imm16, MemImm8 is Alb9=$(ALBOP_SET) & MemImm8; Imm16 { AlbSet(MemImm8, Imm16, MemImm8); }
+	:"rst" Imm16, MemImm8 is Alb9=$(ALBOP_RST) & MemImm8; Imm16 { AlbRst(MemImm8, Imm16, MemImm8); }
+	:"chng" Imm16, MemImm8 is Alb9=$(ALBOP_CHNG) & MemImm8; Imm16 { AlbChng(MemImm8, Imm16, MemImm8); }
+	:"addv" Imm16, MemImm8 is Alb9=$(ALBOP_ADDV) & MemImm8; Imm16 { AlbAddv(MemImm8, Imm16, MemImm8); }
+	:"tst0" Imm16, MemImm8 is Alb9=$(ALBOP_TST0) & MemImm8; Imm16 { AlbTst0(Imm16, MemImm8); }
+	:"tst1" Imm16, MemImm8 is Alb9=$(ALBOP_TST1) & MemImm8; Imm16 { AlbTst1(Imm16, MemImm8); }
+	:"cmpv" Imm16, MemImm8 is Alb9=$(ALBOP_CMPV) & MemImm8; Imm16 { AlbCmpv(Imm16, MemImm8); }
+	:"subv" Imm16, MemImm8 is Alb9=$(ALBOP_SUBV) & MemImm8; Imm16 { AlbSubv(MemImm8, Imm16, MemImm8); }
+}
+
+# alb MemRnStep
+# MemRnStep has side effects, so need to be careful with the RMW ops
+with ins2: (instr_5_8=0x0E0>>5 & instr_12_15=0x8) ...
+{
+	:"set" Imm16, RnStep is Alb9=$(ALBOP_SET) & RnStep ; Imm16
+	{ local addr:2 = RnStep; local val:2 = *[data]:2 addr; AlbSet(val, Imm16, val); *[data]:2 addr = val; }
+	:"rst" Imm16, RnStep is Alb9=$(ALBOP_RST) & RnStep ; Imm16
+	{ local addr:2 = RnStep; local val:2 = *[data]:2 addr; AlbRst(val, Imm16, val); *[data]:2 addr = val; }
+	:"chng" Imm16, RnStep is Alb9=$(ALBOP_CHNG) & RnStep ; Imm16
+	{ local addr:2 = RnStep; local val:2 = *[data]:2 addr; AlbChng(val, Imm16, val); *[data]:2 addr = val; }
+	:"addv" Imm16, RnStep is Alb9=$(ALBOP_ADDV) & RnStep ; Imm16
+	{ local addr:2 = RnStep; local val:2 = *[data]:2 addr; AlbAddv(val, Imm16, val); *[data]:2 addr = val; }
+	:"tst0" Imm16, MemRnStep is Alb9=$(ALBOP_TST0) & MemRnStep ; Imm16 { AlbTst0(Imm16, MemRnStep); }
+	:"tst1" Imm16, MemRnStep is Alb9=$(ALBOP_TST1) & MemRnStep ; Imm16 { AlbTst1(Imm16, MemRnStep); }
+	:"cmpv" Imm16, MemRnStep is Alb9=$(ALBOP_CMPV) & MemRnStep ; Imm16 { AlbCmpv(Imm16, MemRnStep); }
+	:"subv" Imm16, RnStep is Alb9=$(ALBOP_SUBV) & RnStep ; Imm16
+	{ local addr:2 = RnStep; local val:2 = *[data]:2 addr; AlbSubv(val, Imm16, val); *[data]:2 addr = val; }
+}
+
+# alb Register
+with ins2: (instr_5_8=0x1E0>>5 & instr_12_15=0x8) ...
+{
+	:"set" Imm16, RegDstAlb is Alb9=$(ALBOP_SET) & RegDstAlb & RegSrc & Reg0; Imm16 [ regname_src=Reg0; regname_dst=Reg0; ]
+	{ AlbSet(bus16, Imm16, RegSrc); build RegDstAlb; }
+	
+	with : (Alb9=$(ALBOP_RST)) ...
+	{
+		:"rst" Imm16, "st0" is Reg0=$(OPREG_ST0); Imm16 & instr_expword=0xF000 { a0 = a0 & 0xFFFFFFFF; }
+		:"rst" Imm16, "st1" is Reg0=$(OPREG_ST1); Imm16 & instr_expword=0xF000 { a1 = a1 & 0xFFFFFFFF; }
+		:"rst" Imm16, RegDstAlb is RegDstAlb & RegSrc & Reg0; Imm16 [ regname_src=Reg0; regname_dst=Reg0; ]
+		{ AlbRst(bus16, Imm16, RegSrc); build RegDstAlb; }
+	}
+	
+	:"chng" Imm16, RegDstAlb is Alb9=$(ALBOP_CHNG) & RegDstAlb & RegSrc & Reg0; Imm16 [ regname_src=Reg0; regname_dst=Reg0; ]
+	{ AlbChng(bus16, Imm16, RegSrc); build RegDstAlb; }
+	:"addv" Imm16, RegDstAlb is Alb9=$(ALBOP_ADDV) & RegDstAlb & RegSrc & Reg0; Imm16 [ regname_src=Reg0; regname_dst=Reg0; ]
+	{ AlbAddv(bus16, Imm16, RegSrc); build RegDstAlb; }
+	:"tst0" Imm16, RegSrc is Alb9=$(ALBOP_TST0) & RegSrc & Reg0; Imm16 [regname_src=Reg0; ] { AlbTst0(Imm16, RegSrc); }
+	:"tst1" Imm16, RegSrc is Alb9=$(ALBOP_TST1) & RegSrc & Reg0; Imm16 [regname_src=Reg0; ] { AlbTst1(Imm16, RegSrc); }
+	:"cmpv" Imm16, RegSrc is Alb9=$(ALBOP_CMPV) & RegSrc & Reg0; Imm16 [regname_src=Reg0; ] { AlbCmpv(Imm16, RegSrc); }
+	:"subv" Imm16, RegDstAlb is Alb9=$(ALBOP_SUBV) & RegDstAlb & RegSrc & Reg0; Imm16 [ regname_src=Reg0; regname_dst=Reg0; ]
+	{ AlbSubv(bus16, Imm16, RegSrc); build RegDstAlb; }
+}
+
+# alb r6
+with ins2: (instr_3_15=0x47B8>>3) ...
+{
+	:"set" Imm16, r6 is Alb0=$(ALBOP_SET) & r6 ; Imm16 { AlbSet(r6, Imm16, r6); }
+	:"rst" Imm16, r6 is Alb0=$(ALBOP_RST) & r6 ; Imm16 { AlbRst(r6, Imm16, r6); }
+	:"chng" Imm16, r6 is Alb0=$(ALBOP_CHNG) & r6 ; Imm16 { AlbChng(r6, Imm16, r6); }
+	:"addv" Imm16, r6 is Alb0=$(ALBOP_ADDV) & r6 ; Imm16 { AlbAddv(r6, Imm16, r6); }
+	:"tst0" Imm16, r6 is Alb0=$(ALBOP_TST0) & r6 ; Imm16 { AlbTst0(Imm16, r6); }
+	:"tst1" Imm16, r6 is Alb0=$(ALBOP_TST1) & r6 ; Imm16 { AlbTst1(Imm16, r6); }
+	:"cmpv" Imm16, r6 is Alb0=$(ALBOP_CMPV) & r6 ; Imm16 { AlbCmpv(Imm16, r6); }
+	:"subv" Imm16, r6 is Alb0=$(ALBOP_SUBV) & r6 ; Imm16 { AlbSubv(r6, Imm16, r6); }
+}
+
+# alb SttMod
+ins2:"set" Imm16, SttMod0Write is instr_3_15=0x43C8>>3 & SttMod0Read & SttMod0Write ; Imm16
+{ AlbSet(bus16, Imm16, SttMod0Read); build SttMod0Write; }
+ins2:"rst" Imm16, SttMod0Write is instr_3_15=0x4388>>3 & SttMod0Read & SttMod0Write ; Imm16
+{ AlbRst(bus16, Imm16, SttMod0Read); build SttMod0Write; }
+ins2:"chng" Imm16, SttMod0Write is instr_3_15=0x0038>>3 & SttMod0Read & SttMod0Write ; Imm16
+{ AlbChng(bus16, Imm16, SttMod0Read); build SttMod0Write; }
+ins2:"tst0" Imm16, SttMod0Read is instr_3_15=0x9470>>3 & SttMod0Read ; Imm16 { AlbTst0(Imm16, SttMod0Read); }
+ins2:"tst1" Imm16, SttMod0Read is instr_3_15=0x9478>>3 & SttMod0Read ; Imm16 { AlbTst1(Imm16, SttMod0Read); }

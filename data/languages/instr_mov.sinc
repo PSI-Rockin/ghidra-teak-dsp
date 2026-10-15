@@ -1,0 +1,135 @@
+# WARNING: The encoding of these instructions is horrifically bad. Read at your own risk...
+
+# TODO: needs saturation check
+ins:"mov" Ab10, Ab5 is instr_0_4=0x10 & instr_7_9=0x290>>7 & instr_12_15=0xD & Ab10 & Ab5 { SatAndSetAccAndFlag(Ab5, Ab10); }
+
+# TODO: needs saturation check
+ins:"mov" Abl0, y1 is instr_2_15=0xD384>>2 & Abl0 & y1 { y1 = Abl0; }
+
+# TODO: needs saturation check
+ins:"mov" Ablh9, MemImm8 is instr_12_15=0x3 & instr_8_8=0 & MemImm8 & Ablh9 { MemImm8 = Ablh9; }
+
+# TODO: needs saturation check
+ins2:"mov" Axl8, MemImm16 is instr_0_7=0xBC & instr_9_15=0xD4BC>>9 & Axl8 ; MemImm16 { MemImm16 = Axl8; }
+
+# TODO: needs saturation check
+ins2:"mov" Axl8, MemR7Imm16 is instr_0_7=0x9C & instr_9_15=0xD49C>>9 & Axl8 ; MemR7Imm16 { MemR7Imm16 = Axl8; }
+
+# TODO: needs saturation check
+ins:"mov" Axl8, MemR7Imm7s is instr_7_7=1 & instr_9_15=0xDC80>>9 & Axl8 & MemR7Imm7s { MemR7Imm7s = Axl8; }
+
+ins2:"mov" MemImm16, Ax8 is instr_0_7=0xB8 & instr_9_15=0xD4B8>>9 & Ax8 ; MemImm16 { AccFromBus16(Ax8, MemImm16); }
+ins:"mov" MemImm8, Ab11 is instr_8_10=0x1 & instr_13_15=0x6000>>13 & MemImm8 & Ab11 { AccFromBus16(Ab11, MemImm8); }
+ins:"mov" MemImm8, Ablh10FromBus16 is instr_8_9=0x2 & instr_13_15=0x6200>>13 & MemImm8 & Ablh10FromBus16 { bus16 = MemImm8; build Ablh10FromBus16; }
+ins:"mov" MemImm8, RnOld10 is instr_8_9=0x0 & instr_13_15=0x6000>>13 & MemImm8 & RnOld10 { RnOld10 = MemImm8; }
+
+ins2:"mov" MemR7Imm16, Ax8 is instr_0_7=0x98 & instr_9_15=0xD498>>9 & Ax8 ; MemR7Imm16 { AccFromBus16(Ax8, MemR7Imm16); }
+ins:"mov" MemR7Imm7s, Ax8 is instr_7_7=1 & instr_9_15=0xD880>>9 & MemR7Imm7s & Ax8 { AccFromBus16(Ax8, MemR7Imm7s); }
+ins:"mov" MemRnStep, Bx8FromBus16 is instr_5_7=0xC0>>5 & instr_9_15=0x98C0>>9 & MemRnStep & Bx8FromBus16 & StepMode3 [stepmode = StepMode3;] { bus16 = MemRnStep; build Bx8FromBus16; }
+ins:"mov" MemRnStep, RegDst is instr_10_15=0x1C00>>10 & MemRnStep & RegDst & StepMode3 & Reg5 [stepmode = StepMode3; regname_dst = Reg5; ] { bus16 = MemRnStep; build RegDst; }
+ins:"mov" RegSrc, MemRnStep is instr_10_15=0x1800>>10 & MemRnStep & RegSrc & StepMode3 & Reg5 &
+    instr_5_9!=$(OPREG_A0) & instr_5_9!=$(OPREG_A1) [stepmode = StepMode3; regname_src = Reg5; ] { MemRnStep = RegSrc; }
+
+ins:"mov" mixp, RegDst is instr_5_15=0x47C0>>5 & Reg0 & mixp & RegDst [ regname_dst = Reg0; ] { bus16 = mixp; build RegDst; }
+ins:"mov" RnOld9, MemImm8 is instr_12_15=0x2 & instr_8_8=0x0 & RnOld9 & MemImm8 { MemImm8 = RnOld9; }
+ins:"mov" RegSrc, mixp is instr_5_15=0x5E80>>5 & Reg0 & RegSrc & mixp [ regname_src = Reg0; ] { mixp = RegSrc; }
+ins:"mov" MemImm8, sv is instr_8_15=0x6D & sv & MemImm8 { sv = MemImm8; }
+ins:"mov" sv, MemImm8 is instr_8_15=0x7D & sv & MemImm8 { MemImm8 = sv; }
+ins2:"mov" Imm16, Bx8 is instr_0_7=0x20 & instr_9_15=0x5E20>>9 & Bx8; Imm16 { AccFromBus16(Bx8, Imm16); }
+ins2:"mov" Imm16, RegDst is instr_5_15=0x5E00>>5 & Reg0 & RegDst; Imm16 [regname_dst = Reg0; ] { bus16 = Imm16; build RegDst; }
+ins:"mov" Imm8s, RnOld10 is instr_13_15=0x1 & instr_8_9=0x3 & Imm8s & RnOld10 { RnOld10 = Imm8s; }
+ins:"mov" Imm8s, sv is instr_8_15=0x5 & Imm8s & sv { sv = Imm8s; }
+ins:"mov" Imm8, Axl12FromBus16 is instr_13_15=0x2100>>13 & instr_8_11=0x1 & Imm8 & Axl12FromBus16
+{ bus16 = zext(Imm8); build Axl12FromBus16; }
+
+with ins: instr_10_15=0x5800>>10
+{
+	with : instr_0_4=$(OPREG_P)
+	{
+		:"mov" "p*", a0 is instr_5_5=0 & a0 & PToBus40 [ pname=0; ] { local tmp:8 = PToBus40; SatAndSetAccAndFlag(a0, tmp); }
+		:"mov" "p*", a1 is instr_5_5=1 & a1 & PToBus40 [ pname=0; ] { local tmp:8 = PToBus40; SatAndSetAccAndFlag(a1, tmp); }
+	}
+	
+	with : instr_0_4=$(OPREG_PC)
+	{
+		:"mov" pc, a0 is instr_5_9=$(OPREG_A0) & pc & a0 { local tmp:4 = inst_next / 2; local tmp2:8 = zext(tmp); SatAndSetAccAndFlag(a0, tmp2); }
+		:"mov" pc, a1 is instr_5_9=$(OPREG_A1) & pc & a1 { local tmp:4 = inst_next / 2; local tmp2:8 = zext(tmp); SatAndSetAccAndFlag(a1, tmp2); }
+	}
+	
+	:"mov" RegSrc, RegDst is instr_0_4!=$(OPREG_A0) & instr_0_4!=$(OPREG_A1) &
+		Reg0 & Reg5 & RegSrc & RegDst [regname_dst = Reg5; regname_src = Reg0; ] { bus16 = RegSrc; build RegDst; }
+}
+
+ins:"mov" RegSrc, Bx5 is instr_6_15=0x5EC0>>6 & Reg0 & RegSrc & Bx5 [ regname_src = Reg0; ] { AccFromBus16(Bx5, RegSrc); }
+ins2:"mov" Imm16, ArArp0Write is instr_3_15=0x0008>>3 & ArArp0Write ; Imm16 { bus16 = Imm16; build ArArp0Write; }
+ins2:"mov" Imm16, r6 is instr_word=0x0023 & r6 ; Imm16 { r6 = Imm16; }
+ins2:"mov" Imm16, stepi0 is instr_word=0x8971 & stepi0 ; Imm16 { stepi0 = Imm16; }
+ins2:"mov" Imm16, stepj0 is instr_word=0x8979 & stepj0 ; Imm16 { stepj0 = Imm16; }
+ins2:"mov" Imm16, SttMod0Write is instr_3_15=0x0030>>3 & SttMod0Write ; Imm16 { bus16 = Imm16; build SttMod0Write; }
+
+ins:"movp" "["Ax5"]", RegDst is instr_6_15=0x0D40>>6 & Ax5 & RegDst & Reg0 [ regname_dst=Reg0; ] { bus16 = *[code]:2 Ax5:4; build RegDst; }
+ins:"movpdw" "["Ax8"]", pc is instr_0_7=0x99 & instr_9_15=0xD499>>9 & Ax8 & pc
+{
+	local addr:4 = Ax8:4;
+	local tmp:4 = zext(*[code]:2 addr);
+	local tmp2:4 = zext(*[code]:2 addr+1);
+	
+	tmp = (tmp << 16) | tmp2;
+	delayslot(4);
+	goto [tmp];
+}
+
+ins:"mov" a0h, stepi0 is instr_word=0xD49B & a0h & stepi0 { stepi0 = a0h; }
+ins:"mov" a0h, stepj0 is instr_word=0xD59B & a0h & stepj0 { stepj0 = a0h; }
+ins:"mov" stepi0, a0h is instr_word=0xD482 & stepi0 & a0h { AccHiFromBus16(a0, stepi0); }
+ins:"mov" stepj0, a0h is instr_word=0xD582 & stepj0 & a0h { AccHiFromBus16(a0, stepj0); }
+
+ins:"mov" Abl3, ArArp0Write is instr_5_15=0x9540>>5 & Abl3 & ArArp0Write { bus16 = Abl3; build ArArp0Write; }
+ins:"mov" Abl3, SttMod0Write is instr_5_15=0x9C60>>5 & Abl3 & SttMod0Write { bus16 = Abl3; build SttMod0Write; }
+
+ins:"mov" ArArp0Read, Abl3 is instr_5_15=0x9560>>5 & ArArp0Read & Abl3 { SatAndSetAccAndFlag(Abl3, ArArp0Read); }
+ins:"mov" SttMod0Read, Abl10 is instr_3_9=0x2F8>>3 & instr_12_15=0xD & SttMod0Read & Abl10 { SatAndSetAccAndFlag(Abl10, SttMod0Read); }
+
+ins:"mov" Ax8, pc is instr_0_7=0x6B & instr_9_15=0x886B>>9 & Ax8 & pc { delayslot(4); goto [Ax8:4]; }
+ins:"mov" Bx8, pc is instr_0_7=0x63 & instr_9_15=0x886B>>9 & Bx8 & pc { delayslot(4); goto [Bx8:4]; }
+
+# TODO: saturation check
+ins:"mov" Ab0, p0 is instr_2_15=0x8FD4>>2 & Ab0 & p0 { p0 = Ab0; }
+ins:"mov" p1, Ab0 is instr_2_15=0x8FD8>>2 & p1 & Ab0 & PToBus40 [ pname=1; ] { SatAndSetAccAndFlag(Ab0, PToBus40); }
+
+ins:"mov2" Px1, ArStep is instr_0_0=0x0 & instr_4_7=0xD & instr_10_15=0x88D0>>10 & Px1 & ArStep & ArRn2_8 & ArStep2_2 [ arrn=ArRn2_8; arstep=ArStep2_2; ] { *[data]:4 ArStep = Px1; }
+ins:"mov2" ArStep, Px0 is instr_1_4=0x12>>1 & instr_7_9=0x292>>7 & instr_12_15=0xD & ArStep & Px0 & ArRn2_10 & ArStep2_5 [ arrn=ArRn2_10; arstep=ArStep2_5; ]
+{ Px0 = sext(*[data]:4 ArStep); }
+
+# TODO: Both mova instructions need to get the offset value from the AR0/1 registers
+ins:"mova" Ab4, ArStep is instr_6_15=0x4DC0>>6 & Ab4 & ArStep & ArRn2_2 & ArStep2_0 [ arrn=ArRn2_2; arstep=ArStep2_0; ] { *[data]:4 ArStep = Ab4:4; }
+ins:"mova" ArStep, Ab4 is instr_6_15=0x4BC0>>6 & ArStep & Ab4 & ArRn2_2 & ArStep2_0 [ arrn=ArRn2_2; arstep=ArStep2_0; ] { local val:8 = sext(*[data]:4 ArStep); SatAndSetAccAndFlag(Ab4, val); }
+
+ins:"mov" r6, RegDst is instr_5_15=0x5F00>>5 & r6 & RegDst & Reg0 [ regname_dst=Reg0; ] { bus16 = r6; build RegDst; }
+ins:"mov" RegSrc, r6 is instr_5_15=0x5F60>>5 & RegSrc & r6 & Reg0 [ regname_src=Reg0; ] { r6 = RegSrc; }
+
+ins:"movs" MemImm8, Ab11 is instr_8_10=0x3 & instr_13_15=0x6300>>13 & MemImm8 & Ab11 { local tmp:8 = sext(MemImm8); ShiftGen40(Ab11, tmp, sv); }
+ins:"movs" MemRnStep, Ab5 is instr_7_15=0x0180>>7 & MemRnStep & StepMode3 & Ab5 [ stepmode = StepMode3; ] { local tmp:8 = sext(MemRnStep); ShiftGen40(Ab5, tmp, sv); }
+ins:"movs" RegSrc, Ab5 is instr_7_15=0x0100>>7 & RegSrc & Reg0 & Ab5 [ regname_src = Reg0; ] { local tmp:8 = sext(RegSrc); ShiftGen40(Ab5, tmp, sv); }
+ins:"movs" r6, Ax0 is instr_1_15=0x5F42>>1 & r6 & Ax0 { local tmp:8 = sext(r6); ShiftGen40(Ax0, tmp, sv); }
+
+# TODO: ShiftLeft/ShiftRight constructors
+ins:"movsi" RnOld9, Ab5, Imm5s is instr_7_8=0x1 & instr_12_15=0x4 & RnOld9 & Ab5 & Imm5s
+{
+	local tmp:8 = sext(RnOld9);
+	ShiftGen40(Ab5, tmp, Imm5s);
+}
+
+ins:"mov2" Abh4, Abh2, ArStep is instr_6_15=0x9D40>>6 & Abh4 & Abh2 & ArStep & ArRn1_1 & ArStep1_0 [ arrn=ArRn1_1; arstep=ArStep1_0; ]
+{
+	local addr:2 = ArStep;
+	*[data]:2 addr = Abh4;
+	*[data]:2 addr+1 = Abh2;
+}
+
+ins:"exchange" ArpStepj, Axh6, ArpStepi is instr_7_15=0x4900>>7 & Axh6 & ArpStepj & ArpStepi & ArpRn2_4 & ArpStep2_0 & ArpStep2_2
+[ arrn=ArpRn2_4; arstep=ArpStep2_0; arstep2=ArpStep2_2; ]
+{
+	local i:2 = ArpStepi; local j:2 = ArpStepj;
+	*[data]:2 i = Axh6; Axh6 = *[data]:2 j;
+}

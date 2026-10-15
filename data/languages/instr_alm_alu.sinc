@@ -1,0 +1,268 @@
+@define ALM_OR    0
+@define ALM_AND   1
+@define ALM_XOR   2
+@define ALM_ADD   3
+@define ALM_TST0  4
+@define ALM_TST1  5
+@define ALM_CMP   6
+@define ALM_SUB   7
+@define ALM_MSU   8
+@define ALM_ADDH  9
+@define ALM_ADDL  10
+@define ALM_SUBH  11
+@define ALM_SUBL  12
+@define ALM_SQR   13
+@define ALM_SQRA  14
+@define ALM_CMPU  15
+
+@define ALU_OR    0
+@define ALU_AND   1
+@define ALU_XOR   2
+@define ALU_ADD   3
+@define ALU_CMP   6
+@define ALU_SUB   7
+
+macro AlmOr(acc, op)
+{
+	local tmp:8 = zext(op);
+	local result:8 = acc | tmp;
+	SetAccAndFlag(acc, result);
+}
+
+macro AlmAnd(acc, op)
+{
+	local tmp:8 = zext(op);
+	local result:8 = acc & tmp;
+	SetAccAndFlag(acc, result);
+}
+
+macro AlmXor(acc, op)
+{
+	local tmp:8 = zext(op);
+	local result:8 = acc ^ tmp;
+	SetAccAndFlag(acc, result);
+}
+
+macro AlmAdd(acc, op)
+{
+	local tmp:8 = sext(op);
+	local result:8;
+	Add40(result, acc, tmp);
+	SatAndSetAccAndFlag(acc, result);
+}
+
+macro AlmSub(acc, op)
+{
+	local tmp:8 = sext(op);
+	local result:8;
+	Sub40(result, acc, tmp);
+	SatAndSetAccAndFlag(acc, result);
+}
+
+macro AlmMsu(acc, op, prod)
+{
+	local tmp:2 = op;
+	local result:8;
+	Add40(result, acc, prod);
+	SatAndSetAccAndFlag(acc, result);
+	x0 = tmp;
+	HwMultiplySS(p0, x0, y0);
+}
+
+macro AlmTst0(acc, op)
+{
+	fz = (acc:2 & op) == 0;
+}
+
+macro AlmTst1(acc, op)
+{
+	fz = (acc:2 & ~op) == 0;
+}
+
+macro AlmCmp(acc, op)
+{
+	local tmp:8 = sext(op);
+	local result:8;
+	Sub40(result, acc, tmp);
+	SetAccFlag(result);
+}
+
+macro AlmAddh(acc, op)
+{
+	local tmp_lo:4 = zext(op);
+	tmp_lo = tmp_lo << 16;
+	local tmp:8 = sext(tmp_lo);
+	local result:8;
+	Add40(result, acc, tmp);
+	SatAndSetAccAndFlag(acc, result);
+}
+
+macro AlmAddl(acc, op)
+{
+	local tmp:8 = zext(op);
+	local result:8;
+	Add40(result, acc, tmp);
+	SatAndSetAccAndFlag(acc, result);
+}
+
+macro AlmSubh(acc, op)
+{
+	local tmp_lo:4 = zext(op);
+	tmp_lo = tmp_lo << 16;
+	local tmp:8 = sext(tmp_lo);
+	local result:8;
+	Sub40(result, acc, tmp);
+	SatAndSetAccAndFlag(acc, result);
+}
+
+macro AlmSubl(acc, op)
+{
+	local tmp:8 = zext(op);
+	local result:8;
+	Sub40(result, acc, tmp);
+	SatAndSetAccAndFlag(acc, result);
+}
+
+macro AlmSqr(op)
+{
+	local tmp:2 = op;
+	x0 = tmp; y0 = tmp;
+	HwMultiplySS(p0, x0, y0);
+}
+
+macro AlmCmpu(acc, op)
+{
+	local tmp:8 = zext(op);
+	local result:8;
+	Sub40(result, acc, tmp);
+	SetAccFlag(result);
+}
+
+# alm MemImm8
+with ins: instr_13_15=0xA000>>13
+{
+	:"or" MemImm8, Ax8 is Alm=$(ALM_OR) & Ax8 & MemImm8 { AlmOr(Ax8, MemImm8); }
+	:"and" MemImm8, Ax8 is Alm=$(ALM_AND) & Ax8 & MemImm8 { AlmAnd(Ax8, MemImm8); }
+	:"xor" MemImm8, Ax8 is Alm=$(ALM_XOR) & Ax8 & MemImm8 { AlmXor(Ax8, MemImm8); }
+	:"add" MemImm8, Ax8 is Alm=$(ALM_ADD) & Ax8 & MemImm8 { AlmAdd(Ax8, MemImm8); }
+	:"tst0" MemImm8, Ax8 is Alm=$(ALM_TST0) & Ax8 & MemImm8 { AlmTst0(Ax8, MemImm8); }
+	:"tst1" MemImm8, Ax8 is Alm=$(ALM_TST1) & Ax8 & MemImm8 { AlmTst1(Ax8, MemImm8); }
+	:"cmp" MemImm8, Ax8 is Alm=$(ALM_CMP) & Ax8 & MemImm8 { AlmCmp(Ax8, MemImm8); }
+	:"sub" MemImm8, Ax8 is Alm=$(ALM_SUB) & Ax8 & MemImm8 { AlmSub(Ax8, MemImm8); }
+	:"msu" MemImm8, Ax8 is Alm=$(ALM_MSU) & Ax8 & MemImm8 & PToBus40 [ pname = 0; ] { AlmMsu(Ax8, MemImm8, PToBus40); }
+	:"addh" MemImm8, Ax8 is Alm=$(ALM_ADDH) & Ax8 & MemImm8 { AlmAddh(Ax8, MemImm8); }
+	:"addl" MemImm8, Ax8 is Alm=$(ALM_ADDL) & Ax8 & MemImm8 { AlmAddl(Ax8, MemImm8); }
+	:"subh" MemImm8, Ax8 is Alm=$(ALM_SUBH) & Ax8 & MemImm8 { AlmSubh(Ax8, MemImm8); }
+	:"subl" MemImm8, Ax8 is Alm=$(ALM_SUBL) & Ax8 & MemImm8 { AlmSubl(Ax8, MemImm8); }
+	:"sqr" MemImm8, Ax8 is Alm=$(ALM_SQR) & Ax8 & MemImm8 { AlmSqr(MemImm8); }
+	:"cmpu" MemImm8, Ax8 is Alm=$(ALM_CMPU) & Ax8 & MemImm8 { AlmCmpu(Ax8, MemImm8); }
+}
+
+# alm MemRnStep
+with ins: instr_5_7=0x80>>5 & instr_13_15=0x8080>>13
+{
+	:"or" MemRnStep, Ax8 is Alm=$(ALM_OR) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmOr(Ax8, MemRnStep); }
+	:"and" MemRnStep, Ax8 is Alm=$(ALM_AND) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmAnd(Ax8, MemRnStep); }
+	:"xor" MemRnStep, Ax8 is Alm=$(ALM_XOR) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmXor(Ax8, MemRnStep); }
+	:"add" MemRnStep, Ax8 is Alm=$(ALM_ADD) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmAdd(Ax8, MemRnStep); }
+	:"tst0" MemRnStep, Ax8 is Alm=$(ALM_TST0) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmTst0(Ax8, MemRnStep); }
+	:"tst1" MemRnStep, Ax8 is Alm=$(ALM_TST1) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmTst1(Ax8, MemRnStep); }
+	:"cmp" MemRnStep, Ax8 is Alm=$(ALM_CMP) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmCmp(Ax8, MemRnStep); }
+	:"sub" MemRnStep, Ax8 is Alm=$(ALM_SUB) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmSub(Ax8, MemRnStep); }
+	:"msu" MemRnStep, Ax8 is Alm=$(ALM_MSU) & Ax8 & MemRnStep & StepMode3 & PToBus40 [ stepmode = StepMode3; pname = 0; ] { AlmMsu(Ax8, MemRnStep, PToBus40); }
+	:"addh" MemRnStep, Ax8 is Alm=$(ALM_ADDH) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmAddh(Ax8, MemRnStep); }
+	:"addl" MemRnStep, Ax8 is Alm=$(ALM_ADDL) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmAddl(Ax8, MemRnStep); }
+	:"subh" MemRnStep, Ax8 is Alm=$(ALM_SUBH) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmSubh(Ax8, MemRnStep); }
+	:"subl" MemRnStep, Ax8 is Alm=$(ALM_SUBL) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmSubl(Ax8, MemRnStep); }
+	:"sqr" MemRnStep, Ax8 is Alm=$(ALM_SQR) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmSqr(MemRnStep); }
+	:"cmpu" MemRnStep, Ax8 is Alm=$(ALM_CMPU) & Ax8 & MemRnStep & StepMode3 [ stepmode = StepMode3; ] { AlmCmpu(Ax8, MemRnStep); }
+}
+
+# alm Register
+with ins: instr_5_7=0xA0>>5 & instr_13_15=0x80A0>>13
+{
+	# Teakra indicates that the ops not listed here are undefined for a0/a1/p0...
+	with : instr_0_4=$(OPREG_A0) | instr_0_4=$(OPREG_A1) | instr_0_4=$(OPREG_P)
+	{
+		:"or" RegSrcAlm, Ax8 is Alm=$(ALM_OR) & Ax8 & RegSrcAlm & Reg0 [ regname_src=Reg0; ] { AlmOr(Ax8, RegSrcAlm); }
+		:"and" RegSrcAlm, Ax8 is Alm=$(ALM_AND) & Ax8 & RegSrcAlm & Reg0 [ regname_src=Reg0; ] { AlmAnd(Ax8, RegSrcAlm); }
+		:"xor" RegSrcAlm, Ax8 is Alm=$(ALM_XOR) & Ax8 & RegSrcAlm & Reg0 [ regname_src=Reg0; ] { AlmXor(Ax8, RegSrcAlm); }
+		:"add" RegSrcAlm, Ax8 is Alm=$(ALM_ADD) & Ax8 & RegSrcAlm & Reg0 [ regname_src=Reg0; ] { AlmAdd(Ax8, RegSrcAlm); }
+		:"cmp" RegSrcAlm, Ax8 is Alm=$(ALM_CMP) & Ax8 & RegSrcAlm & Reg0 [ regname_src=Reg0; ] { AlmCmp(Ax8, RegSrcAlm); }
+		:"sub" RegSrcAlm, Ax8 is Alm=$(ALM_SUB) & Ax8 & RegSrcAlm & Reg0 [ regname_src=Reg0; ] { AlmSub(Ax8, RegSrcAlm); }	
+	}
+	
+	with : epsilon
+	{
+		:"or" RegSrc, Ax8 is Alm=$(ALM_OR) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmOr(Ax8, RegSrc); }
+		:"and" RegSrc, Ax8 is Alm=$(ALM_AND) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmAnd(Ax8, RegSrc); }
+		:"xor" RegSrc, Ax8 is Alm=$(ALM_XOR) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmXor(Ax8, RegSrc); }
+		:"add" RegSrc, Ax8 is Alm=$(ALM_ADD) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmAdd(Ax8, RegSrc); }
+		:"tst0" RegSrc, Ax8 is Alm=$(ALM_TST0) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmTst0(Ax8, RegSrc); }
+		:"tst1" RegSrc, Ax8 is Alm=$(ALM_TST1) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmTst1(Ax8, RegSrc); }
+		:"cmp" RegSrc, Ax8 is Alm=$(ALM_CMP) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmCmp(Ax8, RegSrc); }
+		:"sub" RegSrc, Ax8 is Alm=$(ALM_SUB) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmSub(Ax8, RegSrc); }
+		:"msu" RegSrc, Ax8 is Alm=$(ALM_MSU) & Ax8 & RegSrc & Reg0 & PToBus40 [ regname_src=Reg0; pname=0; ] { AlmMsu(Ax8, RegSrc, PToBus40); }
+		:"addh" RegSrc, Ax8 is Alm=$(ALM_ADDH) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmAddh(Ax8, RegSrc); }
+		:"addl" RegSrc, Ax8 is Alm=$(ALM_ADDL) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmAddl(Ax8, RegSrc); }
+		:"subh" RegSrc, Ax8 is Alm=$(ALM_SUBH) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmSubh(Ax8, RegSrc); }
+		:"subl" RegSrc, Ax8 is Alm=$(ALM_SUBL) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmSubl(Ax8, RegSrc); }
+		:"sqr" RegSrc, Ax8 is Alm=$(ALM_SQR) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmSqr(RegSrc); }
+		:"cmpu" RegSrc, Ax8 is Alm=$(ALM_CMPU) & Ax8 & RegSrc & Reg0 [ regname_src=Reg0; ] { AlmCmpu(Ax8, RegSrc); }	
+	}
+}
+
+# alu MemImm16
+with ins2: (instr_3_7=0xF8>>3 & instr_9_15=0xD4F8>>9) ...
+{
+	:"or" MemImm16, Ax8 is Alu0=$(ALU_OR) & Ax8 ; MemImm16 { AlmOr(Ax8, MemImm16); }
+	:"and" MemImm16, Ax8 is Alu0=$(ALU_AND) & Ax8 ; MemImm16 { AlmAnd(Ax8, MemImm16); }
+	:"xor" MemImm16, Ax8 is Alu0=$(ALU_XOR) & Ax8 ; MemImm16 { AlmXor(Ax8, MemImm16); }
+	:"add" MemImm16, Ax8 is Alu0=$(ALU_ADD) & Ax8 ; MemImm16 { AlmAdd(Ax8, MemImm16); }
+	:"cmp" MemImm16, Ax8 is Alu0=$(ALU_CMP) & Ax8 ; MemImm16 { AlmCmp(Ax8, MemImm16); }
+	:"sub" MemImm16, Ax8 is Alu0=$(ALU_SUB) & Ax8 ; MemImm16 { AlmSub(Ax8, MemImm16); }
+}
+
+# alu MemR7Imm16
+with ins2: (instr_3_7=0xD8>>3 & instr_9_15=0xD4D8>>9) ...
+{
+	:"or" MemR7Imm16, Ax8 is Alu0=$(ALU_OR) & Ax8 ; MemR7Imm16 { AlmOr(Ax8, MemR7Imm16); }
+	:"and" MemR7Imm16, Ax8 is Alu0=$(ALU_AND) & Ax8 ; MemR7Imm16 { AlmAnd(Ax8, MemR7Imm16); }
+	:"xor" MemR7Imm16, Ax8 is Alu0=$(ALU_XOR) & Ax8 ; MemR7Imm16 { AlmXor(Ax8, MemR7Imm16); }
+	:"add" MemR7Imm16, Ax8 is Alu0=$(ALU_ADD) & Ax8 ; MemR7Imm16 { AlmAdd(Ax8, MemR7Imm16); }
+	:"cmp" MemR7Imm16, Ax8 is Alu0=$(ALU_CMP) & Ax8 ; MemR7Imm16 { AlmCmp(Ax8, MemR7Imm16); }
+	:"sub" MemR7Imm16, Ax8 is Alu0=$(ALU_SUB) & Ax8 ; MemR7Imm16 { AlmSub(Ax8, MemR7Imm16); }
+}
+
+# alu Imm16
+with ins2: (instr_12_15=0x8 & instr_0_7=0xC0) ...
+{
+	:"or" Imm16, Ax8 is Alu9=$(ALU_OR) & Ax8 ; Imm16 { AlmOr(Ax8, Imm16); }
+	:"and" Imm16, Ax8 is Alu9=$(ALU_AND) & Ax8 ; Imm16 { AlmAnd(Ax8, Imm16); }
+	:"xor" Imm16, Ax8 is Alu9=$(ALU_XOR) & Ax8 ; Imm16 { AlmXor(Ax8, Imm16); }
+	:"add" Imm16, Ax8 is Alu9=$(ALU_ADD) & Ax8 ; Imm16 { AlmAdd(Ax8, Imm16); }
+	:"cmp" Imm16, Ax8 is Alu9=$(ALU_CMP) & Ax8 ; Imm16 { AlmCmp(Ax8, Imm16); }
+	:"sub" Imm16, Ax8 is Alu9=$(ALU_SUB) & Ax8 ; Imm16 { AlmSub(Ax8, Imm16); }
+}
+
+# alu Imm8
+with ins: instr_12_15=0xC
+{
+	:"or" Imm8, Ax8 is Alu9=$(ALU_OR) & Ax8 & Imm8 { AlmOr(Ax8, Imm8); }
+	:"and" Imm8, Ax8 is Alu9=$(ALU_AND) & Ax8 & Imm8 { AlmAnd(Ax8, Imm8); }
+	:"xor" Imm8, Ax8 is Alu9=$(ALU_XOR) & Ax8 & Imm8 { AlmXor(Ax8, Imm8); }
+	:"add" Imm8, Ax8 is Alu9=$(ALU_ADD) & Ax8 & Imm8 { AlmAdd(Ax8, Imm8); }
+	:"cmp" Imm8, Ax8 is Alu9=$(ALU_CMP) & Ax8 & Imm8 { AlmCmp(Ax8, Imm8); }
+	:"sub" Imm8, Ax8 is Alu9=$(ALU_SUB) & Ax8 & Imm8 { AlmSub(Ax8, Imm8); }
+}
+
+# alu MemR7Imm7s
+with ins: instr_12_15=0x4 & instr_7_7=0
+{
+	:"or" MemR7Imm7s, Ax8 is Alu9=$(ALU_OR) & MemR7Imm7s & Ax8 { AlmOr(Ax8, MemR7Imm7s); }
+	:"and" MemR7Imm7s, Ax8 is Alu9=$(ALU_AND) & MemR7Imm7s & Ax8 { AlmAnd(Ax8, MemR7Imm7s); }
+	:"xor" MemR7Imm7s, Ax8 is Alu9=$(ALU_XOR) & MemR7Imm7s & Ax8 { AlmXor(Ax8, MemR7Imm7s); }
+	:"add" MemR7Imm7s, Ax8 is Alu9=$(ALU_ADD) & MemR7Imm7s & Ax8 { AlmAdd(Ax8, MemR7Imm7s); }
+	:"cmp" MemR7Imm7s, Ax8 is Alu9=$(ALU_CMP) & MemR7Imm7s & Ax8 { AlmCmp(Ax8, MemR7Imm7s); }
+	:"sub" MemR7Imm7s, Ax8 is Alu9=$(ALU_SUB) & MemR7Imm7s & Ax8 { AlmSub(Ax8, MemR7Imm7s); }
+}

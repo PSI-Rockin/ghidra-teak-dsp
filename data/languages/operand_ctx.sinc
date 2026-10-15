@@ -1,0 +1,102 @@
+@define OPCTX_AR0     0
+@define OPCTX_AR1     1
+@define OPCTX_ARP0    2
+@define OPCTX_ARP1    3
+@define OPCTX_ARP2    4
+@define OPCTX_ARP3    5
+@define OPCTX_STT0    8
+@define OPCTX_STT1    9
+@define OPCTX_STT2    10
+@define OPCTX_MOD0    12
+@define OPCTX_MOD1    13
+@define OPCTX_MOD2    14
+@define OPCTX_MOD3    15
+
+# TODO: Replace these pcodeops with more granular accesses to the context they represent
+
+define pcodeop ReadAr0;
+define pcodeop ReadAr1;
+define pcodeop ReadArp0;
+define pcodeop ReadArp1;
+define pcodeop ReadArp2;
+define pcodeop ReadArp3;
+define pcodeop ReadStt0;
+define pcodeop ReadStt1;
+define pcodeop ReadStt2;
+define pcodeop ReadMod0;
+define pcodeop ReadMod1;
+define pcodeop ReadMod2;
+define pcodeop ReadMod3;
+
+define pcodeop WriteArUnit;
+define pcodeop WriteArpiUnit;
+define pcodeop WriteArpjUnit;
+define pcodeop WriteStt0;
+define pcodeop WriteStt1;
+define pcodeop WriteStt2;
+define pcodeop WriteMod0;
+define pcodeop WriteMod1;
+define pcodeop WriteMod2;
+define pcodeop WriteMod3;
+
+macro WriteAr(index, value)
+{
+	local u1:2 = index * 2;
+	local u2:2 = u1 + 1;
+	
+	WriteArUnit(u1, (value >> 13) & 0x7, (value >> 5) & 0x7, (value >> 8) & 0x3);
+	WriteArUnit(u2, (value >> 10) & 0x7, value & 0x7, (value >> 3) & 0x3);
+}
+
+macro WriteArp(index, value)
+{
+	local u:2 = index;
+	WriteArpiUnit(u, (value >> 10) & 0x3, value & 0x7, (value >> 3) & 0x3);
+	WriteArpjUnit(u, (value >> 13) & 0x3, (value >> 5) & 0x7, (value >> 8) & 0x3);
+}
+
+ArArpSttModReadBase:"ar0" is ctxname=$(OPCTX_AR0) { local tmp:2 = ReadAr0(); export tmp; }
+ArArpSttModReadBase:"ar1" is ctxname=$(OPCTX_AR1) { local tmp:2 = ReadAr1(); export tmp; }
+ArArpSttModReadBase:"arp0" is ctxname=$(OPCTX_ARP0) { local tmp:2 = ReadArp0(); export tmp; }
+ArArpSttModReadBase:"arp1" is ctxname=$(OPCTX_ARP1) { local tmp:2 = ReadArp1(); export tmp; }
+ArArpSttModReadBase:"arp2" is ctxname=$(OPCTX_ARP2) { local tmp:2 = ReadArp2(); export tmp; }
+ArArpSttModReadBase:"arp3" is ctxname=$(OPCTX_ARP3) { local tmp:2 = ReadArp3(); export tmp; }
+ArArpSttModReadBase:"stt0" is ctxname=$(OPCTX_STT0) { local tmp:2 = ReadStt0(); export tmp; }
+ArArpSttModReadBase:"stt1" is ctxname=$(OPCTX_STT1) { local tmp:2 = ReadStt1(); export tmp; }
+ArArpSttModReadBase:"stt2" is ctxname=$(OPCTX_STT2) { local tmp:2 = ReadStt2(); export tmp; }
+ArArpSttModReadBase:"mod0" is ctxname=$(OPCTX_MOD0) { local tmp:2 = ReadMod0(); export tmp; }
+ArArpSttModReadBase:"mod1" is ctxname=$(OPCTX_MOD1) { local tmp:2 = ReadMod1(); export tmp; }
+ArArpSttModReadBase:"mod2" is ctxname=$(OPCTX_MOD2) { local tmp:2 = ReadMod2(); export tmp; }
+ArArpSttModReadBase:"mod3" is ctxname=$(OPCTX_MOD3) { local tmp:2 = ReadMod3(); export tmp; }
+
+ArArpSttModWriteBase:"ar0" is ctxname=$(OPCTX_AR0) { WriteAr(0, bus16); }
+ArArpSttModWriteBase:"ar1" is ctxname=$(OPCTX_AR1) { WriteAr(1, bus16); }
+ArArpSttModWriteBase:"arp0" is ctxname=$(OPCTX_ARP0) { WriteArp(0, bus16); }
+ArArpSttModWriteBase:"arp1" is ctxname=$(OPCTX_ARP1) { WriteArp(1, bus16); }
+ArArpSttModWriteBase:"arp2" is ctxname=$(OPCTX_ARP2) { WriteArp(2, bus16); }
+ArArpSttModWriteBase:"arp3" is ctxname=$(OPCTX_ARP3) { WriteArp(3, bus16); }
+ArArpSttModWriteBase:"stt0" is ctxname=$(OPCTX_STT0) { WriteStt0(bus16); }
+ArArpSttModWriteBase:"stt1" is ctxname=$(OPCTX_STT1) { WriteStt1(bus16); }
+ArArpSttModWriteBase:"stt2" is ctxname=$(OPCTX_STT2) { WriteStt2(bus16); }
+ArArpSttModWriteBase:"mod0" is ctxname=$(OPCTX_MOD0) { WriteMod0(bus16); }
+ArArpSttModWriteBase:"mod1" is ctxname=$(OPCTX_MOD1) { WriteMod1(bus16); }
+ArArpSttModWriteBase:"mod2" is ctxname=$(OPCTX_MOD2) { WriteMod2(bus16); }
+ArArpSttModWriteBase:"mod3" is ctxname=$(OPCTX_MOD3) { WriteMod3(bus16); }
+
+ArArpSttMod0Read:ArArpSttModReadBase is ArArpSttMod0 & ArArpSttModReadBase [ ctxname=ArArpSttMod0; ] { export ArArpSttModReadBase; }
+ArArpSttMod8Read:ArArpSttModReadBase is ArArpSttMod8 & ArArpSttModReadBase [ ctxname=ArArpSttMod8; ] { export ArArpSttModReadBase; }
+
+ArArpSttMod0Write:ArArpSttModWriteBase is ArArpSttMod0 & ArArpSttModWriteBase [ ctxname=ArArpSttMod0; ] { build ArArpSttModWriteBase; }
+ArArpSttMod8Write:ArArpSttModWriteBase is ArArpSttMod8 & ArArpSttModWriteBase [ ctxname=ArArpSttMod8; ] { build ArArpSttModWriteBase; }
+
+SttMod0Read:ArArpSttModReadBase is SttMod0 & ArArpSttModReadBase [ ctxname=SttMod0+8; ] { export ArArpSttModReadBase; }
+SttMod8Read:ArArpSttModReadBase is SttMod8 & ArArpSttModReadBase [ ctxname=SttMod8+8; ] { export ArArpSttModReadBase; }
+
+SttMod0Write:ArArpSttModWriteBase is SttMod0 & ArArpSttModWriteBase [ ctxname=SttMod0+8; ] { build ArArpSttModWriteBase; }
+SttMod8Write:ArArpSttModWriteBase is SttMod8 & ArArpSttModWriteBase [ ctxname=SttMod8+8; ] { build ArArpSttModWriteBase; }
+
+ArArp0Read:ArArpSttModReadBase is ArArp0 & ArArpSttModReadBase [ ctxname=ArArp0; ] { export ArArpSttModReadBase; }
+ArArp8Read:ArArpSttModReadBase is ArArp8 & ArArpSttModReadBase [ ctxname=ArArp8; ] { export ArArpSttModReadBase; }
+
+ArArp0Write:ArArpSttModWriteBase is ArArp0 & ArArpSttModWriteBase [ ctxname=ArArp0; ] { build ArArpSttModWriteBase; }
+ArArp8Write:ArArpSttModWriteBase is ArArp8 & ArArpSttModWriteBase [ ctxname=ArArp8; ] { build ArArpSttModWriteBase; }

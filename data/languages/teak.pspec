@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<processor_spec>
+  <programcounter register="pc"/>
+  
+  <context_data>
+    <tracked_set space="code">
+      <set name="page" val="0x0"/>
+      
+      <set name="lc0" val="0x0"/>
+      <set name="lc1" val="0x0"/>
+      <set name="lc2" val="0x0"/>
+      <set name="lc3" val="0x0"/>
+      
+      <set name="ps0" val="0x0"/>
+      <set name="ps1" val="0x0"/>
+    </tracked_set>
+    <context_set space="code">
+      <set name="page_scratch" val="0x1"/>
+    </context_set>
+  </context_data>
+</processor_spec>

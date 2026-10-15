@@ -1,0 +1,77 @@
+@define OPAXL_A0L    0
+@define OPAXL_A1L    1
+
+@define OPABLH_B0L   0
+@define OPABLH_B0H   1
+@define OPABLH_B1L   2
+@define OPABLH_B1H   3
+@define OPABLH_A0L   4
+@define OPABLH_A0H   5
+@define OPABLH_A1L   6
+@define OPABLH_A1H   7
+
+@define OPBX_B0      0
+@define OPBX_B1      1
+
+macro AccFromBus16(acc, val)
+{
+	local tmp:8 = sext(val);
+	SatAndSetAccAndFlag(acc, tmp);
+}
+
+macro AccLoFromBus16(acc, val)
+{
+	local tmp:8 = zext(val);
+	SatAndSetAccAndFlag(acc, tmp);
+}
+
+macro AccHiFromBus16(acc, val)
+{
+	local tmp:4 = zext(val);
+	tmp = tmp << 16;
+	local tmp2:8 = sext(tmp);
+	SatAndSetAccAndFlag(acc, tmp2);
+}
+
+# Axl
+Axl0FromBus16: a0l is instr_0_0=$(OPAXL_A0L) & a0l { AccLoFromBus16(a0, bus16); }
+Axl0FromBus16: a1l is instr_0_0=$(OPAXL_A1L) & a1l { AccLoFromBus16(a1, bus16); }
+Axl4FromBus16: a0l is instr_4_4=$(OPAXL_A0L) & a0l { AccLoFromBus16(a0, bus16); }
+Axl4FromBus16: a1l is instr_4_4=$(OPAXL_A1L) & a1l { AccLoFromBus16(a1, bus16); }
+Axl5FromBus16: a0l is instr_5_5=$(OPAXL_A0L) & a0l { AccLoFromBus16(a0, bus16); }
+Axl5FromBus16: a1l is instr_5_5=$(OPAXL_A1L) & a1l { AccLoFromBus16(a1, bus16); }
+Axl8FromBus16: a0l is instr_8_8=$(OPAXL_A0L) & a0l { AccLoFromBus16(a0, bus16); }
+Axl8FromBus16: a1l is instr_8_8=$(OPAXL_A1L) & a1l { AccLoFromBus16(a1, bus16); }
+Axl12FromBus16: a0l is instr_12_12=$(OPAXL_A0L) & a0l { AccLoFromBus16(a0, bus16); }
+Axl12FromBus16: a1l is instr_12_12=$(OPAXL_A1L) & a1l { AccLoFromBus16(a1, bus16); }
+
+# Ablh
+# Ablh9 is *only* used for reads, Ablh10 is *only* used for writes
+Ablh10FromBus16: b0l is Ablh10=$(OPABLH_B0L) & b0l { AccLoFromBus16(b0, bus16); }
+Ablh10FromBus16: b0h is Ablh10=$(OPABLH_B0H) & b0h { AccHiFromBus16(b0, bus16); }
+Ablh10FromBus16: b1l is Ablh10=$(OPABLH_B1L) & b1l { AccLoFromBus16(b1, bus16); }
+Ablh10FromBus16: b1h is Ablh10=$(OPABLH_B1H) & b1h { AccHiFromBus16(b1, bus16); }
+Ablh10FromBus16: a0l is Ablh10=$(OPABLH_A0L) & a0l { AccLoFromBus16(a0, bus16); }
+Ablh10FromBus16: a0h is Ablh10=$(OPABLH_A0H) & a0h { AccHiFromBus16(a0, bus16); }
+Ablh10FromBus16: a1l is Ablh10=$(OPABLH_A1L) & a1l { AccLoFromBus16(a1, bus16); }
+Ablh10FromBus16: a1h is Ablh10=$(OPABLH_A1H) & a1h { AccHiFromBus16(a1, bus16); }
+
+# Bx
+Bx0FromBus16: b0 is Bx0=$(OPBX_B0) & b0 { AccFromBus16(b0, bus16); }
+Bx0FromBus16: b1 is Bx0=$(OPBX_B1) & b1 { AccFromBus16(b1, bus16); }
+Bx1FromBus16: b0 is Bx1=$(OPBX_B0) & b0 { AccFromBus16(b0, bus16); }
+Bx1FromBus16: b1 is Bx1=$(OPBX_B1) & b1 { AccFromBus16(b1, bus16); }
+Bx2FromBus16: b0 is Bx2=$(OPBX_B0) & b0 { AccFromBus16(b0, bus16); }
+Bx2FromBus16: b1 is Bx2=$(OPBX_B1) & b1 { AccFromBus16(b1, bus16); }
+Bx3FromBus16: b0 is Bx3=$(OPBX_B0) & b0 { AccFromBus16(b0, bus16); }
+Bx3FromBus16: b1 is Bx3=$(OPBX_B1) & b1 { AccFromBus16(b1, bus16); }
+Bx4FromBus16: b0 is Bx4=$(OPBX_B0) & b0 { AccFromBus16(b0, bus16); }
+Bx4FromBus16: b1 is Bx4=$(OPBX_B1) & b1 { AccFromBus16(b1, bus16); }
+Bx5FromBus16: b0 is Bx5=$(OPBX_B0) & b0 { AccFromBus16(b0, bus16); }
+Bx5FromBus16: b1 is Bx5=$(OPBX_B1) & b1 { AccFromBus16(b1, bus16); }
+Bx8FromBus16: b0 is Bx8=$(OPBX_B0) & b0 { AccFromBus16(b0, bus16); }
+Bx8FromBus16: b1 is Bx8=$(OPBX_B1) & b1 { AccFromBus16(b1, bus16); }
+Bx10FromBus16: b0 is Bx10=$(OPBX_B0) & b0 { AccFromBus16(b0, bus16); }
+Bx10FromBus16: b1 is Bx10=$(OPBX_B1) & b1 { AccFromBus16(b1, bus16); }
+Bx12FromBus16: b0 is Bx12=$(OPBX_B0) & b0 { AccFromBus16(b0, bus16); }
+Bx12FromBus16: b1 is Bx12=$(OPBX_B1) & b1 { AccFromBus16(b1, bus16); }

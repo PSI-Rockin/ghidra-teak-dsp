@@ -1,0 +1,123 @@
+# TODO: Modulo logic (make this a pcodeop?)
+# TODO: Check for Rn0=3/7 and return 0 if epi/epj are enabled
+# TODO: Bit reverse (make this a pcodeop?)
+# TODO: STEP should use stepi0/stepj0 when stp16==1 and cmd==0
+# TODO: STEP logic is different when modulo is enabled
+
+@define STEPMODE_ZERO    0
+@define STEPMODE_I1      1
+@define STEPMODE_D1      2
+@define STEPMODE_STEP    3
+@define STEPMODE_I2      4
+@define STEPMODE_D2      5
+@define STEPMODE_I2_2    6
+@define STEPMODE_D2_2    7
+
+@define RN_R0 0
+@define RN_R1 1
+@define RN_R2 2
+@define RN_R3 3
+@define RN_R4 4
+@define RN_R5 5
+@define RN_R6 6
+@define RN_R7 7
+
+macro StepI1(out, Rn)
+{
+	out = Rn; Rn = Rn + 1;
+}
+
+macro StepD1(out, Rn)
+{
+	out = Rn; Rn = Rn - 1;
+}
+
+macro StepStepi(out, Rn)
+{
+	out = Rn; Rn = Rn + stepi;
+}
+
+macro StepStepj(out, Rn)
+{
+	out = Rn; Rn = Rn + stepj;
+}
+
+macro StepI2(out, Rn)
+{
+	out = Rn; Rn = Rn + 2;
+}
+
+macro StepD2(out, Rn)
+{
+	out = Rn; Rn = Rn - 2;
+}
+
+RnBase: r0 is rn=$(RN_R0) & r0 { export r0; }
+RnBase: r1 is rn=$(RN_R1) & r1 { export r1; }
+RnBase: r2 is rn=$(RN_R2) & r2 { export r2; }
+RnBase: r3 is rn=$(RN_R3) & r3 { export r3; }
+RnBase: r4 is rn=$(RN_R4) & r4 { export r4; }
+RnBase: r5 is rn=$(RN_R5) & r5 { export r5; }
+RnBase: r6 is rn=$(RN_R6) & r6 { export r6; }
+RnBase: r7 is rn=$(RN_R7) & r7 { export r7; }
+Rn2Base: r0 is rn2=$(RN_R0) & r0 { export r0; }
+Rn2Base: r1 is rn2=$(RN_R1) & r1 { export r1; }
+Rn2Base: r2 is rn2=$(RN_R2) & r2 { export r2; }
+Rn2Base: r3 is rn2=$(RN_R3) & r3 { export r3; }
+Rn2Base: r4 is rn2=$(RN_R4) & r4 { export r4; }
+Rn2Base: r5 is rn2=$(RN_R5) & r5 { export r5; }
+Rn2Base: r6 is rn2=$(RN_R6) & r6 { export r6; }
+Rn2Base: r7 is rn2=$(RN_R7) & r7 { export r7; }
+
+RnStepBase: RnBase is RnBase & stepmode=$(STEPMODE_ZERO) { export RnBase; }
+RnStepBase: RnBase"++" is RnBase & stepmode=$(STEPMODE_I1) { local tmp:2; StepI1(tmp, RnBase); export tmp; }
+RnStepBase: RnBase"--" is RnBase & stepmode=$(STEPMODE_D1) { local tmp:2; StepD1(tmp, RnBase); export tmp; }
+RnStepBase: RnBase"+s" is RnBase & stepmode=$(STEPMODE_STEP) & rn<4 { local tmp:2; StepStepi(tmp, RnBase); export tmp; }
+RnStepBase: RnBase"+s" is RnBase & stepmode=$(STEPMODE_STEP) & rn>3 { local tmp:2; StepStepj(tmp, RnBase); export tmp; }
+RnStepBase: RnBase"+2" is RnBase & stepmode=$(STEPMODE_I2) { local tmp:2; StepI2(tmp, RnBase); export tmp; }
+RnStepBase: RnBase"-2" is RnBase & stepmode=$(STEPMODE_D2) { local tmp:2; StepD2(tmp, RnBase); export tmp; }
+
+RnStep2Base: Rn2Base is Rn2Base & stepmode2=$(STEPMODE_ZERO) { export Rn2Base; }
+RnStep2Base: Rn2Base"++" is Rn2Base & stepmode2=$(STEPMODE_I1) { local tmp:2; StepI1(tmp, Rn2Base); export tmp; }
+RnStep2Base: Rn2Base"--" is Rn2Base & stepmode2=$(STEPMODE_D1) { local tmp:2; StepD1(tmp, Rn2Base); export tmp; }
+RnStep2Base: Rn2Base"+s" is Rn2Base & stepmode2=$(STEPMODE_STEP) & rn<4 { local tmp:2; StepStepi(tmp, Rn2Base); export tmp; }
+RnStep2Base: Rn2Base"+s" is Rn2Base & stepmode2=$(STEPMODE_STEP) & rn>3 { local tmp:2; StepStepj(tmp, Rn2Base); export tmp; }
+RnStep2Base: Rn2Base"+2" is Rn2Base & stepmode2=$(STEPMODE_I2) { local tmp:2; StepI2(tmp, Rn2Base); export tmp; }
+RnStep2Base: Rn2Base"-2" is Rn2Base & stepmode2=$(STEPMODE_D2) { local tmp:2; StepD2(tmp, Rn2Base); export tmp; }
+
+MemRnStepBase: "["RnStepBase"]" is RnStepBase { export *[data]:2 RnStepBase; }
+MemRnStep2Base: "["RnStep2Base"]" is RnStep2Base { export *[data]:2 RnStep2Base; }
+
+RnStep: "["RnStepBase"]" is Rn0 & RnStepBase [ rn=Rn0; ] { export RnStepBase; }
+MemRnStep: RnStep is RnStep { export *[data]:2 RnStep; }
+
+ArRn: "arrn0" is arrn=0 { export r0; }
+ArRn: "arrn1" is arrn=1 { export r4; }
+ArRn: "arrn2" is arrn=2 { export r2; }
+ArRn: "arrn3" is arrn=3 { export r5; }
+
+ArStep: "["ArRn"+ars0]" is ArRn & arstep=0 { export ArRn; }
+ArStep: "["ArRn"+ars1]" is ArRn & arstep=1 { local tmp:2; StepI2(tmp, ArRn); export tmp; }
+ArStep: "["ArRn"+ars2]" is ArRn & arstep=2 { local tmp:2; StepD2(tmp, ArRn); export tmp; }
+ArStep: "["ArRn"+ars3]" is ArRn & (arrn=0 | arrn=2) & arstep=3 { local tmp:2; StepStepi(tmp, ArRn); export tmp; }
+ArStep: "["ArRn"+ars3]" is ArRn & (arrn=1 | arrn=3) & arstep=3 { local tmp:2; StepStepj(tmp, ArRn); export tmp; }
+
+ArpRni: "arprni0" is arrn=0 { export r0; }
+ArpRni: "arprni1" is arrn=1 { export r1; }
+ArpRni: "arprni2" is arrn=2 { export r2; }
+ArpRni: "arprni3" is arrn=3 { export r1; }
+
+ArpRnj: "arprnj0" is arrn=0 { export r4; }
+ArpRnj: "arprnj1" is arrn=1 { export r5; }
+ArpRnj: "arprnj2" is arrn=2 { export r6; }
+ArpRnj: "arprnj3" is arrn=3 { export r4; }
+
+ArpStepi: "["ArpRni"+arsi0]" is ArpRni & arstep=0 { local tmp:2; StepI1(tmp, ArpRni); export tmp; }
+ArpStepi: "["ArpRni"+arsi1]" is ArpRni & arstep=1 { local tmp:2; StepI2(tmp, ArpRni); export tmp; }
+ArpStepi: "["ArpRni"+arsi2]" is ArpRni & arstep=2 { local tmp:2; StepD2(tmp, ArpRni); export tmp; }
+ArpStepi: "["ArpRni"+arsi3]" is ArpRni & arstep=3 { local tmp:2; StepD1(tmp, ArpRni); export tmp; }
+
+ArpStepj: "["ArpRnj"+arsi0]" is ArpRnj & arstep2=0 { local tmp:2; StepI1(tmp, ArpRnj); export tmp; }
+ArpStepj: "["ArpRnj"+arsi1]" is ArpRnj & arstep2=1 { local tmp:2; StepI2(tmp, ArpRnj); export tmp; }
+ArpStepj: "["ArpRnj"+arsi2]" is ArpRnj & arstep2=2 { local tmp:2; StepD2(tmp, ArpRnj); export tmp; }
+ArpStepj: "["ArpRnj"+arsi3]" is ArpRnj & arstep2=3 { local tmp:2; StepD1(tmp, ArpRnj); export tmp; }

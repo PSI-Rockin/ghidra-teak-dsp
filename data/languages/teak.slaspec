@@ -1,0 +1,1309 @@
+define endian=little;
+define alignment=2;
+
+define space code     type=ram_space      size=4 wordsize=2 default;
+define space data     type=ram_space      size=2 wordsize=2;
+define space register type=register_space size=4;
+
+# 40-bit accumulators (kept as 64-bit to make decompilation output simpler)
+define register offset=0x0000 size=8 [
+    a0 a1 b0 b1
+];
+
+define register offset=0x0000 size=2 [
+    a0l a0h _ _
+    a1l a1h _ _
+    b0l b0h _ _
+    b1l b1h _ _
+];
+
+define register offset=0x0000 size=1 [
+    _ _ _ _ a0e _ _ _
+	_ _ _ _ a1e _ _ _
+	_ _ _ _ b0e _ _ _
+	_ _ _ _ b1e _ _ _
+];
+
+# 16-bit address registers
+define register offset=0x0100 size=2 [
+    r0 r1 r2 r3 r4 r5 r6 r7
+];
+
+# 18-bit + 4-bit PC
+# The extra 4 bits represent the PRPAGE register
+define register offset=0x0200 size=4 [
+    pc
+];
+
+# 16-bit stack pointer
+define register offset=0x0300 size=2 [
+    sp
+];
+
+# 16-bit multiplication operands
+define register offset=0x0400 size=2 [
+    x0 x1 y0 y1
+];
+
+# 33-bit product registers (kept as 64-bit to make decompilation output simpler)
+define register offset=0x0500 size=8 [
+    p0 p1
+];
+
+define register offset=0x0500 size=2 [
+	p0l p0h _ _
+	p1l p1h _ _
+];
+
+define register offset=0x0500 size=1 [
+    _ _ _ _ p0e _ _ _
+	_ _ _ _ p1e _ _ _
+];
+
+# 8-bit page register
+define register offset=0x0600 size=1 [
+    page
+];
+
+# 1-bit flags
+define register offset=0x0700 size=1 [
+    fz fm fn fv fe fc0 fc1 flm fvl fr
+];
+
+# Misc 16-bit registers
+define register offset=0x0800 size=2 [
+    sv
+    repc lc0 lc1 lc2 lc3
+    stepi stepj modi modj stepi0 stepj0
+    mixp
+    ps0 ps1
+];
+
+# 16-bit page scratchpad registers
+# These aren't actually real registers on the Teak - they exist to aid decompilation
+# The C compiler treats page=0 as a scratchpad rather than a global space
+define register offset=0x2000 size=2 [
+	pg00 pg01 pg02 pg03 pg04 pg05 pg06 pg07
+	pg08 pg09 pg0A pg0B pg0C pg0D pg0E pg0F
+	pg10 pg11 pg12 pg13 pg14 pg15 pg16 pg17
+	pg18 pg19 pg1A pg1B pg1C pg1D pg1E pg1F
+	pg20 pg21 pg22 pg23 pg24 pg25 pg26 pg27
+	pg28 pg29 pg2A pg2B pg2C pg2D pg2E pg2F
+	pg30 pg31 pg32 pg33 pg34 pg35 pg36 pg37
+	pg38 pg39 pg3A pg3B pg3C pg3D pg3E pg3F
+	pg40 pg41 pg42 pg43 pg44 pg45 pg46 pg47
+	pg48 pg49 pg4A pg4B pg4C pg4D pg4E pg4F
+	pg50 pg51 pg52 pg53 pg54 pg55 pg56 pg57
+	pg58 pg59 pg5A pg5B pg5C pg5D pg5E pg5F
+	pg60 pg61 pg62 pg63 pg64 pg65 pg66 pg67
+	pg68 pg69 pg6A pg6B pg6C pg6D pg6E pg6F
+	pg70 pg71 pg72 pg73 pg74 pg75 pg76 pg77
+	pg78 pg79 pg7A pg7B pg7C pg7D pg7E pg7F
+	pg80 pg81 pg82 pg83 pg84 pg85 pg86 pg87
+	pg88 pg89 pg8A pg8B pg8C pg8D pg8E pg8F
+	pg90 pg91 pg92 pg93 pg94 pg95 pg96 pg97
+	pg98 pg99 pg9A pg9B pg9C pg9D pg9E pg9F
+	pgA0 pgA1 pgA2 pgA3 pgA4 pgA5 pgA6 pgA7
+	pgA8 pgA9 pgAA pgAB pgAC pgAD pgAE pgAF
+	pgB0 pgB1 pgB2 pgB3 pgB4 pgB5 pgB6 pgB7
+	pgB8 pgB9 pgBA pgBB pgBC pgBD pgBE pgBF
+	pgC0 pgC1 pgC2 pgC3 pgC4 pgC5 pgC6 pgC7
+	pgC8 pgC9 pgCA pgCB pgCC pgCD pgCE pgCF
+	pgD0 pgD1 pgD2 pgD3 pgD4 pgD5 pgD6 pgD7
+	pgD8 pgD9 pgDA pgDB pgDC pgDD pgDE pgDF
+	pgE0 pgE1 pgE2 pgE3 pgE4 pgE5 pgE6 pgE7
+	pgE8 pgE9 pgEA pgEB pgEC pgED pgEE pgEF
+	pgF0 pgF1 pgF2 pgF3 pgF4 pgF5 pgF6 pgF7
+	pgF8 pgF9 pgFA pgFB pgFC pgFD pgFE pgFF
+];
+
+# Temporary staging register for Bus16-type operations
+define register offset=0xF000 size=2 [
+	bus16
+];
+
+# Context registers
+define register offset=0x10000 size=16 [
+	contextreg
+];
+
+# Tokens
+define token instr(16)
+    # Fields used for generic instruction decoding
+    instr_0_0=(0, 0)
+    
+    instr_0_1=(0, 1)
+    instr_1_1=(1, 1)
+    
+    instr_0_2=(0, 2)
+    instr_1_2=(1, 2)
+    instr_2_2=(2, 2)
+    
+    instr_0_3=(0, 3)
+    instr_3_3=(3, 3)
+    
+    instr_0_4=(0, 4)
+    instr_0_4s=(0, 4) signed
+    instr_1_4=(1, 4)
+    instr_2_4=(2, 4)
+    instr_4_4=(4, 4)
+    
+    instr_0_5s=(0, 5) signed
+    instr_2_5=(2, 5)
+    instr_4_5=(4, 5)
+    instr_5_5=(5, 5)
+    
+    instr_0_6s=(0, 6) signed
+    instr_5_6=(5, 6)
+    instr_6_6=(6, 6)
+    
+    instr_0_7=(0, 7)
+    instr_0_7s=(0, 7) signed
+    instr_2_7=(2, 7)
+    instr_3_7=(3, 7)
+    instr_4_7=(4, 7)
+    instr_5_7=(5, 7)
+    instr_7_7=(7, 7)
+    
+    instr_5_8=(5, 8)
+    instr_7_8=(7, 8)
+    instr_8_8=(8, 8)
+    
+    instr_1_9=(1, 9)
+    instr_2_9=(2, 9)
+    instr_3_9=(3, 9)
+    instr_5_9=(5, 9)
+    instr_7_9=(7, 9)
+    instr_8_9=(8, 9)
+    instr_9_9=(9, 9)
+    
+    instr_4_10s=(4, 10) signed
+    instr_8_10=(8, 10)
+    
+    instr_4_11=(4, 11)
+    instr_7_11=(7, 11)
+    instr_8_11=(8, 11)
+    
+    instr_12_12=(12, 12)
+    
+     instr_word=(0, 15)
+     instr_1_15=(1, 15)
+     instr_2_15=(2, 15)
+     instr_3_15=(3, 15)
+     instr_4_15=(4, 15)
+     instr_5_15=(5, 15)
+     instr_6_15=(6, 15)
+     instr_7_15=(7, 15)
+     instr_8_15=(8, 15)
+     instr_9_15=(9, 15)
+    instr_10_15=(10, 15)
+    instr_11_15=(11, 15)
+    instr_12_15=(12, 15)
+    instr_13_15=(13, 15)
+    
+    # Fields attached to operands
+
+    ## PageReg
+    PageReg=(0, 7)
+    
+    ## Reg
+    Reg0=(0, 4)
+    Reg5=(5, 9)
+    
+    ## Ax
+     Ax0=(0, 0)
+     Ax1=(1, 1)
+     Ax3=(3, 3)
+     Ax4=(4, 4)
+     Ax5=(5, 5)
+     Ax6=(6, 6)
+     Ax8=(8, 8)
+    Ax10=(10, 10)
+    Ax11=(11, 11)
+    Ax12=(12, 12)
+    
+    ## Axl
+     Axl0=(0, 0)
+     Axl4=(4, 4)
+     Axl5=(5, 5)
+     Axl8=(8, 8)
+    Axl12=(12, 12)
+    
+    ## Axh
+     Axh4=(4, 4)
+     Axh6=(6, 6)
+     Axh8=(8, 8)
+     Axh9=(9, 9)
+    Axh12=(12, 12)
+    
+    ## Bx
+     Bx0=(0, 0)
+     Bx1=(1, 1)
+     Bx2=(2, 2)
+     Bx3=(3, 3)
+     Bx4=(4, 4)
+     Bx5=(5, 5)
+     Bx8=(8, 8)
+    Bx10=(10, 10)
+    Bx12=(12, 12)
+    
+    ## Bxl doesn't seem to be used in the Teak
+    
+    ## Bxh
+    Bxh2=(2, 2)
+    Bxh5=(5, 5)
+    Bxh8=(8, 8)
+    
+    ## Ab
+     Ab0=(0, 1)
+     Ab2=(2, 3)
+     Ab3=(3, 4)
+     Ab4=(4, 5)
+     Ab5=(5, 6)
+     Ab6=(6, 7)
+     Ab7=(7, 8)
+     Ab8=(8, 9)
+    Ab10=(10, 11)
+    Ab11=(11, 12)
+    
+    ## Abl
+     Abl0=(0, 1)
+     Abl3=(3, 4)
+    Abl10=(10, 11)
+    
+    ## Abh
+    Abh2=(2, 3)
+    Abh4=(4, 5)
+    Abh8=(8, 9)
+    
+    ## Abe
+    Abe0=(0, 1)
+    Abe1=(1, 2)
+    
+    ## Ablh
+    Ablh9=(9, 11)
+    Ablh10=(10, 12)
+    
+    ## Px
+    Px0=(0, 0)
+    Px1=(1, 1)
+    
+    ## RnOld
+     RnOld9=(9, 11)
+    RnOld10=(10, 12)
+    
+    ## Rn
+    Rn0=(0, 2)
+    
+    ## R45
+    R45_2=(2, 2)
+    
+    ## R0123
+    R0123_0=(0, 1)
+    R0123_5=(5, 6)
+    
+    ## StepMode
+    StepMode0=(0, 1)
+    StepMode3=(3, 4)
+    StepMode5=(5, 6)
+    StepMode7=(7, 8)
+    
+    ## SttMod
+    SttMod0=(0, 2)
+    SttMod8=(8, 10)
+    
+    ## ArArp
+    ArArp0=(0, 2)
+    ArArp8=(8, 10)
+    
+    ## ArArpSttMod
+    ArArpSttMod0=(0, 3)
+    ArArpSttMod8=(8, 11)
+    
+    ## ArRn1
+    ArRn1_1=(1, 1)
+    ArRn1_3=(3, 3)
+    ArRn1_4=(4, 4)
+    
+    ## ArRn2
+    ArRn2_2=(2, 3)
+    ArRn2_8=(8, 9)
+    ArRn2_10=(10, 11)
+    
+    ## ArStep1
+    ArStep1_0=(0, 0)
+    ArStep1_2=(2, 2)
+    ArStep1_3=(3, 3)
+    
+    ## ArStep2
+    ArStep2_0=(0, 1)
+    ArStep2_2=(2, 3)
+    ArStep2_5=(5, 6)
+    
+    ## ArpRn1
+    ArpRn1_2=(2, 2)
+    ArpRn1_5=(5, 5)
+    
+    ## ArpRn2
+    ArpRn2_4=(4, 5)
+    ArpRn2_10=(10, 11)
+    
+    ## ArpStep1
+    ArpStep1_0=(0, 0)
+    ArpStep1_1=(1, 1)
+    ArpStep1_3=(3, 3)
+    ArpStep1_4=(4, 4)
+    
+    ## ArpStep2
+    ArpStep2_0=(0, 1)
+    ArpStep2_2=(2, 3)
+    ArpStep2_5=(5, 6)
+    
+    # Instruction fields
+    Alm=(9, 12)
+    Alu0=(0, 2)
+    Alu9=(9, 11)
+    Alb0=(0, 2)
+    Alb9=(9, 11)
+    Alb10=(10, 12)
+    Moda4=(4, 7)
+    Moda3=(4, 6)
+    Mul2=(1, 2)
+    Mul3_1=(1, 3)
+    Mul3_8=(8, 10)
+;
+
+define token instr_exp(16)
+    instr_expword=(0, 15)
+;
+
+# Context
+define context contextreg
+    regname_src=(0, 4) noflow
+    regname_dst=(5, 9) noflow
+    stepmode=(10, 12) noflow
+	stepmode2=(13, 15) noflow
+	page_scratch=(16, 16)
+	rep=(17, 17) noflow
+	lpmark=(18, 18) noflow
+	lpmark2=(19, 19) noflow
+	bcn=(20, 22)
+	ctxname=(23, 26) noflow
+	rn=(27, 29) noflow
+	rn2=(30, 32) noflow
+	
+	pname=(33, 33) noflow
+	pname2=(34, 34) noflow
+	
+	arrn=(35, 36) noflow
+	arstep=(37, 38) noflow
+	arrn2=(39, 40) noflow
+	arstep2=(41, 42) noflow
+	
+	sumbase=(43, 44) noflow
+	p0_sub=(45, 45) noflow
+	p0_a=(46, 46) noflow
+	p1_sub=(47, 47) noflow
+	p1_a=(48, 48) noflow
+	sumacc=(49, 50) noflow
+	
+	x0_uns=(51, 51) noflow
+	y0_uns=(52, 52) noflow
+	x1_uns=(53, 53) noflow
+	y1_uns=(54, 54) noflow
+	
+	bkrepaddr=(96, 127) noflow
+;
+
+# Attachments
+attach variables [PageReg]
+[
+	pg00 pg01 pg02 pg03 pg04 pg05 pg06 pg07
+	pg08 pg09 pg0A pg0B pg0C pg0D pg0E pg0F
+	pg10 pg11 pg12 pg13 pg14 pg15 pg16 pg17
+	pg18 pg19 pg1A pg1B pg1C pg1D pg1E pg1F
+	pg20 pg21 pg22 pg23 pg24 pg25 pg26 pg27
+	pg28 pg29 pg2A pg2B pg2C pg2D pg2E pg2F
+	pg30 pg31 pg32 pg33 pg34 pg35 pg36 pg37
+	pg38 pg39 pg3A pg3B pg3C pg3D pg3E pg3F
+	pg40 pg41 pg42 pg43 pg44 pg45 pg46 pg47
+	pg48 pg49 pg4A pg4B pg4C pg4D pg4E pg4F
+	pg50 pg51 pg52 pg53 pg54 pg55 pg56 pg57
+	pg58 pg59 pg5A pg5B pg5C pg5D pg5E pg5F
+	pg60 pg61 pg62 pg63 pg64 pg65 pg66 pg67
+	pg68 pg69 pg6A pg6B pg6C pg6D pg6E pg6F
+	pg70 pg71 pg72 pg73 pg74 pg75 pg76 pg77
+	pg78 pg79 pg7A pg7B pg7C pg7D pg7E pg7F
+	pg80 pg81 pg82 pg83 pg84 pg85 pg86 pg87
+	pg88 pg89 pg8A pg8B pg8C pg8D pg8E pg8F
+	pg90 pg91 pg92 pg93 pg94 pg95 pg96 pg97
+	pg98 pg99 pg9A pg9B pg9C pg9D pg9E pg9F
+	pgA0 pgA1 pgA2 pgA3 pgA4 pgA5 pgA6 pgA7
+	pgA8 pgA9 pgAA pgAB pgAC pgAD pgAE pgAF
+	pgB0 pgB1 pgB2 pgB3 pgB4 pgB5 pgB6 pgB7
+	pgB8 pgB9 pgBA pgBB pgBC pgBD pgBE pgBF
+	pgC0 pgC1 pgC2 pgC3 pgC4 pgC5 pgC6 pgC7
+	pgC8 pgC9 pgCA pgCB pgCC pgCD pgCE pgCF
+	pgD0 pgD1 pgD2 pgD3 pgD4 pgD5 pgD6 pgD7
+	pgD8 pgD9 pgDA pgDB pgDC pgDD pgDE pgDF
+	pgE0 pgE1 pgE2 pgE3 pgE4 pgE5 pgE6 pgE7
+	pgE8 pgE9 pgEA pgEB pgEC pgED pgEE pgEF
+	pgF0 pgF1 pgF2 pgF3 pgF4 pgF5 pgF6 pgF7
+	pgF8 pgF9 pgFA pgFB pgFC pgFD pgFE pgFF
+];
+
+attach variables [Ax0 Ax1 Ax3 Ax4 Ax5 Ax6 Ax8 Ax10 Ax11 Ax12]
+[
+	a0 a1
+];
+
+attach variables [Axl0 Axl4 Axl5 Axl8 Axl12]
+[
+	a0l a1l
+];
+
+attach variables [Axh4 Axh6 Axh8 Axh9 Axh12]
+[
+	a0h a1h
+];
+
+attach variables [Bx0 Bx1 Bx2 Bx3 Bx4 Bx5 Bx8 Bx10 Bx12]
+[
+	b0 b1
+];
+
+attach variables [Ab0 Ab2 Ab3 Ab4 Ab5 Ab6 Ab7 Ab8 Ab10 Ab11]
+[
+	b0 b1 a0 a1
+];
+
+attach variables [Abl0 Abl3 Abl10]
+[
+	b0l b1l a0l a1l
+];
+
+attach variables [Abh2 Abh4 Abh8]
+[
+	b0h b1h a0h a1h
+];
+
+attach variables [Abe0 Abe1]
+[
+	b0e b1e a0e a1e
+];
+
+attach variables [Ablh9 Ablh10]
+[
+	b0l b0h b1l b1h a0l a0h a1l a1h
+];
+
+attach variables [Px0 Px1]
+[
+	p0 p1
+];
+
+attach variables [RnOld9 RnOld10]
+[
+	r0 r1 r2 r3 r4 r5 r7 y0
+];
+
+attach variables [Rn0]
+[
+	r0 r1 r2 r3 r4 r5 r6 r7
+];
+
+attach variables [R45_2]
+[
+	r4 r5
+];
+
+attach variables [R0123_0 R0123_5]
+[
+	r0 r1 r2 r3
+];
+
+# Custom pcodes
+define pcodeop Sat;
+
+define pcodeop IntrDisable;
+define pcodeop IntrEnable;
+define pcodeop CntxStore;
+define pcodeop CntxRestore;
+
+define pcodeop BankCfgi;
+define pcodeop BankR4;
+define pcodeop BankR1;
+define pcodeop BankR0;
+define pcodeop BankR7;
+define pcodeop BankCfgj;
+
+define pcodeop Exp;
+
+# Macros
+macro SetAccFlag(value)
+{
+	local tmp:8 = zext(value);
+	fz = tmp == 0;
+	fm = tmp s< 0;
+	local tmp32:4 = trunc(tmp);
+	local tmp32_s:8 = sext(tmp32);
+	fe = tmp != tmp32_s;
+	
+	# TODO: fn
+}
+
+macro SetAccAndFlag(reg, value)
+{
+	SetAccFlag(value);
+	
+	reg = value;
+}
+
+macro SatAndSetAccAndFlag(reg, value)
+{
+	SetAccFlag(value);
+	
+	# TODO: saturation
+	reg = value;
+}
+
+macro PushWord(x)
+{
+	local mysave:2 = x;
+	sp = sp - 1;
+	*[data]:2 sp = mysave;
+}
+
+macro PushDouble(x)
+{
+	local mysave:4 = x;
+	sp = sp - 2;
+	*[data]:4 sp = mysave;
+}
+
+macro PopWord(x)
+{
+	x = *[data]:2 sp;
+	sp = sp + 1;
+}
+
+macro PopDouble(x)
+{
+	x = *[data]:4 sp;
+	sp = sp + 2;
+}
+
+macro Add40(result, a, b)
+{
+	result = a + b;
+	fc0 = carry(a, b);
+	fv = scarry(a, b);
+	fvl = fvl | fv;
+}
+
+macro Sub40(result, a, b)
+{
+	result = a - b;
+	fc0 = a < b;
+	fv = sborrow(a, b);
+	fvl = fvl | fv;
+}
+
+# TODO: Shift operations do saturation but in a weird way compared to everything else
+# TODO: Arithmetic variations (s == 0)
+macro ShiftLeft40(acc_dst, val, shift)
+{
+	local result:8 = zext(val) << shift;
+	fc0 = ((result >> 40) & 0x1) != 0;
+	SetAccAndFlag(acc_dst, result:8);
+}
+
+macro ShiftRight40(acc_dst, val, shift)
+{
+	local result:8 = zext(val);
+	fc0 = ((result >> (shift - 1)) & 0x1) != 0;
+	result = result >> shift;
+	SetAccAndFlag(acc_dst, result:8);
+}
+
+# Used when the shift value is not an immediate
+macro ShiftGen40(acc_dst, val, shift)
+{
+	if (shift s< 0) goto <shift_right>;
+	ShiftLeft40(acc_dst, val, shift);
+	goto <done>;
+<shift_right>
+	ShiftRight40(acc_dst, val, -shift);
+<done>
+}
+
+macro HwMultiplySS(prod, x, y)
+{
+	local tmp:8 = sext(x);
+	local tmp2:8 = sext(y);
+	
+	prod = tmp * tmp2;
+}
+
+macro HwMultiplySU(prod, x, y)
+{
+	local tmp:8 = sext(x);
+	local tmp2:8 = zext(y);
+	
+	prod = tmp * tmp2;
+}
+
+macro HwMultiplyUS(prod, x, y)
+{
+	local tmp:8 = zext(x);
+	local tmp2:8 = sext(y);
+	
+	prod = tmp * tmp2;
+}
+
+macro HwMultiplyUU(prod, x, y)
+{
+	local tmp:8 = zext(x);
+	local tmp2:8 = zext(y);
+	
+	prod = tmp * tmp2;
+}
+
+macro BkrepLoopStart(lc_src, index)
+{
+	local tmp:2 = zext(lc_src) + 1;
+	if (index == 1) goto <bcn1>;
+	if (index == 2) goto <bcn2>;
+	if (index == 3) goto <bcn3>;
+	lc3 = tmp; goto <done>;
+<bcn1>
+	lc0 = tmp; goto <done>;
+<bcn2>
+	lc1 = tmp; goto <done>;
+<bcn3>
+	lc2 = tmp;
+<done>
+}
+
+macro LoopCheck(inst, counter)
+{
+	build inst;
+	if (counter == 0) goto inst_next;
+	counter = counter - 1;
+}
+
+macro BkrepLoopCheck(inst, counter, start)
+{
+	build inst;
+	counter = counter - 1;
+	if (counter != 0) goto start;
+}
+
+macro MaxMinImpl40(acc, counter_acc, addr, cond)
+{
+	fm = cond;
+	
+	if (!fm) goto <done>;
+	mixp = addr;
+	acc = counter_acc;
+<done>
+}
+
+macro MaxGe40(acc, counter_acc, addr)
+{
+	local cond:1 = counter_acc s>= acc;
+	MaxMinImpl40(acc, counter_acc, addr, cond);
+}
+
+macro MaxGt40(acc, counter_acc, addr)
+{
+	local cond:1 = counter_acc s> acc;
+	MaxMinImpl40(acc, counter_acc, addr, cond);
+}
+
+macro MinLe40(acc, counter_acc, addr)
+{
+	local cond:1 = counter_acc s<= acc;
+	MaxMinImpl40(acc, counter_acc, addr, cond);
+}
+
+macro MinLt40(acc, counter_acc, addr)
+{
+	local cond:1 = counter_acc s< acc;
+	MaxMinImpl40(acc, counter_acc, addr, cond);
+}
+
+macro ProductToBus40(out, prod, shift_ctrl)
+{
+	local tmp:8 = prod;
+	
+	if (shift_ctrl == 1) goto <shift_right>;
+	if (shift_ctrl < 2) goto <done>;
+	tmp = tmp << (shift_ctrl - 1);
+	goto <done>;
+<shift_right>
+	tmp = tmp s>> 1;
+<done>
+    out = tmp;
+}
+
+macro Swap(s0, s1, d0, d1)
+{
+	local tmp:8 = s0;
+	local tmp2:8 = s1;
+	SatAndSetAccAndFlag(d0, tmp);
+	SatAndSetAccAndFlag(d1, tmp2);
+}
+
+# Common subconstructors
+Cond:       is instr_0_3=0 {}
+Cond: ".eq" is instr_0_3=1
+{
+	if (fz != 1) goto inst_next;
+}
+Cond: ".ne" is instr_0_3=2
+{
+	if (fz != 0) goto inst_next;
+}
+Cond: ".gt" is instr_0_3=3
+{
+	if (fz != 0 || fm != 0) goto inst_next;
+}
+Cond: ".ge" is instr_0_3=4
+{
+	if (fm != 0) goto inst_next;
+}
+Cond: ".lt" is instr_0_3=5
+{
+	if (fm != 1) goto inst_next;
+}
+Cond: ".le" is instr_0_3=6
+{
+	if (fm != 1 && fz != 1) goto inst_next;
+}
+Cond: ".nn" is instr_0_3=7
+{
+	if (fn != 0) goto inst_next;
+}
+Cond: ".c"  is instr_0_3=8
+{
+	if (fc0 != 1) goto inst_next;
+}
+Cond: ".v"  is instr_0_3=9
+{
+	if (fv != 1) goto inst_next;
+}
+Cond: ".e"  is instr_0_3=10
+{
+	if (fe != 1) goto inst_next;
+}
+Cond: ".l"  is instr_0_3=11
+{
+	if (flm != 1 && fvl != 1) goto inst_next;
+}
+Cond: ".nr" is instr_0_3=12
+{
+	if (fr != 0) goto inst_next;
+}
+Cond: ".ni" is instr_0_3=13 unimpl
+Cond: ".i0" is instr_0_3=14 unimpl
+Cond: ".i1" is instr_0_3=15 unimpl
+
+# Operand subconstructors
+Address16: reloc is instr_expword [ reloc = instr_expword + (inst_next & 0x30000); ]
+{ export *[code]:4 reloc; }
+
+Address18: reloc is instr_4_5 ; instr_expword [ reloc = instr_expword | (instr_4_5 << 16); ]
+{ export *[code]:4 reloc; }
+
+RelAddr7: reloc is instr_4_10s [ reloc = inst_next + instr_4_10s; ]
+{ export *[code]:4 reloc; }
+
+BkrepAddr16: reloc is instr_expword [ reloc = (inst_start & 0x30000) + instr_expword + 1; ] { export *[code]:4 reloc; }
+BkrepAddr16M1: reloc is instr_expword [ reloc = (inst_start & 0x30000) + instr_expword + 0; ] { export *[code]:4 reloc; }
+BkrepAddr16M2: reloc is instr_expword [ reloc = (inst_start & 0x30000) + instr_expword - 1; ] { export *[code]:4 reloc; }
+
+BkrepAddr18: reloc is instr_5_6 ; instr_expword [ reloc = (instr_expword + 1) | (instr_5_6 << 16); ]
+{ export *[code]:4 reloc; }
+BkrepAddr18M1: reloc is instr_5_6 ; instr_expword [ reloc = (instr_expword + 0) | (instr_5_6 << 16); ]
+{ export *[code]:4 reloc; }
+BkrepAddr18M2: reloc is instr_5_6 ; instr_expword [ reloc = (instr_expword - 1) | (instr_5_6 << 16); ]
+{ export *[code]:4 reloc; }
+
+BkrepAddr18_2: reloc is instr_0_1 ; instr_expword [ reloc = (instr_expword + 1) | (instr_0_1 << 16); ]
+{ export *[code]:4 reloc; }
+BkrepAddr18_2M1: reloc is instr_0_1 ; instr_expword [ reloc = (instr_expword + 0) | (instr_0_1 << 16); ]
+{ export *[code]:4 reloc; }
+BkrepAddr18_2M2: reloc is instr_0_1 ; instr_expword [ reloc = (instr_expword - 1) | (instr_0_1 << 16); ]
+{ export *[code]:4 reloc; }
+
+BkrepStart: reloc is bkrepaddr [ reloc = bkrepaddr + 0; ] { export *[code]:4 reloc; }
+
+Imm2: instr_0_1 is instr_0_1
+{
+	local tmp:2 = instr_0_1;
+	export tmp;
+}
+
+Imm8: instr_0_7 is instr_0_7
+{
+	local tmp:1 = instr_0_7;
+	export tmp;
+}
+
+Imm4_0: instr_0_3 is instr_0_3 { local tmp:2 = instr_0_3; export tmp; }
+Imm4_8: instr_8_11 is instr_8_11 { local tmp:2 = instr_8_11; export tmp; }
+
+Imm16: instr_expword is instr_expword
+{
+	local tmp:2 = instr_expword;
+	export tmp;
+}
+
+MemImm8: "["page:Imm8"]" is page_scratch=1 & page & Imm8 & PageReg
+{
+	export PageReg;
+}
+
+MemImm8: "["page:Imm8"]" is page_scratch=0 & page & Imm8
+{
+	local tmp:2 = zext(Imm8);
+	local tmp2:2 = zext(page);
+	tmp = tmp | (tmp2 << 8);
+	export *[data]:2 tmp;
+}
+
+MemImm16: "["reloc"]" is instr_expword
+[
+	reloc = instr_expword + 0;
+]
+{
+	export *[data]:2 reloc;
+}
+
+Imm5s: instr_0_4s is instr_0_4s
+{
+	local tmp:2 = instr_0_4s;
+	export tmp;
+}
+
+Imm6s: instr_0_5s is instr_0_5s
+{
+	local tmp:2 = instr_0_5s;
+	export tmp;
+}
+
+Imm7s: instr_0_6s is instr_0_6s
+{
+	local tmp:2 = instr_0_6s;
+	export tmp;
+}
+
+Imm8s: instr_0_7s is instr_0_7s
+{
+	local tmp:2 = instr_0_7s;
+	export tmp;
+}
+
+MemR7Imm16: "["r7+Imm16"]" is r7 & Imm16
+{
+	local tmp:2 = r7 + Imm16;
+	export *[data]:2 tmp;
+}
+
+MemR7Imm7s: "["r7+Imm7s"]" is r7 & Imm7s
+{
+	local tmp:2 = r7+Imm7s;
+	export *[data]:2 tmp;
+}
+
+Bcn: val is epsilon [ val = bcn; ] { export *[const]:1 val; }
+Lc: "lc" is bcn=0 { export lc0; }
+Lc: "lc" is bcn=1 { export lc0; }
+Lc: "lc" is bcn=2 { export lc1; }
+Lc: "lc" is bcn=3 { export lc2; }
+Lc: "lc" is epsilon { export lc3; }
+LcNext: "lc" is bcn=0 { export lc0; }
+LcNext: "lc" is bcn=1 { export lc1; }
+LcNext: "lc" is bcn=2 { export lc2; }
+LcNext: "lc" is epsilon { export lc3; }
+
+Banke0: "cfgi" is instr_0_0=1 { BankCfgi(); }
+Banke0: is instr_0_0=0 {}
+
+Banke1: Banke0, r4 is instr_1_1=1 & Banke0 & r4 { build Banke0; BankR4(); }
+Banke1: r4 is instr_1_1=1 & instr_0_0=0 & r4 { BankR4(); }
+Banke1: Banke0 is instr_1_1=0 & Banke0 { }
+
+Banke2: Banke1, r1 is instr_2_2=1 & Banke1 & r1 { build Banke1; BankR1(); }
+Banke2: r1 is instr_2_2=1 & instr_0_1=0 & r1 { BankR1(); }
+Banke2: Banke1 is instr_2_2=0 & Banke1 { }
+
+Banke3: Banke2, r0 is instr_3_3=1 & Banke2 & r0 { build Banke2; BankR0(); }
+Banke3: r0 is instr_3_3=1 & instr_0_2=0 & r0 { BankR0(); }
+Banke3: Banke2 is instr_3_3=0 & Banke2 { }
+
+Banke4: Banke3, r7 is instr_4_4=1 & Banke3 & r7 { build Banke3; BankR7(); }
+Banke4: r7 is instr_4_4=1 & instr_0_3=0 & r7 { BankR7(); }
+Banke4: Banke3 is instr_4_4=0 & Banke3 { }
+
+Banke: Banke4, "cfgj" is instr_5_5=1 & Banke4 { build Banke4; BankCfgj(); }
+Banke: "cfgj" is instr_5_5=1 & instr_0_4=0 { BankCfgj(); }
+Banke: Banke4 is instr_5_5=0 & Banke4 { }
+
+PToBus40: p0 is pname=0 & p0 { local tmp:8; ProductToBus40(tmp, p0, ps0); export tmp; }
+PToBus40: p1 is pname=1 & p1 { local tmp:8; ProductToBus40(tmp, p1, ps1); export tmp; }
+P2ToBus40: p0 is pname2=0 & p0 { local tmp:8; ProductToBus40(tmp, p0, ps0); export tmp; }
+P2ToBus40: p1 is pname2=1 & p1 { local tmp:8; ProductToBus40(tmp, p1, ps1); export tmp; }
+
+# This include needs to be before everything else!
+@include "operand_acc.sinc"
+
+@include "operand_ctx.sinc"
+@include "operand_register.sinc"
+@include "operand_rnstep.sinc"
+
+# Instructions
+@include "instr_alm_alu.sinc"
+@include "instr_alb.sinc"
+@include "instr_mac.sinc"
+@include "instr_moda.sinc"
+@include "instr_mov.sinc"
+
+ins:"nop" is instr_word=0
+{
+	
+}
+
+with ins: instr_4_15=0x498
+{
+	:"swap" a0, b0 is instr_0_3=0x0 & a0 & b0 { Swap(a0, b0, b0, a0); }
+	:"swap" a0, b1 is instr_0_3=0x1 & a0 & b1 { Swap(a0, b1, b1, a0); }
+	:"swap" a1, b0 is instr_0_3=0x2 & a1 & b0 { Swap(a1, b0, b0, a1); }
+	:"swap" a1, b1 is instr_0_3=0x3 & a1 & b1 { Swap(a1, b1, b1, a1); }
+}
+
+ins:"or" Ab10, Ax6, Ax5 is instr_0_4=0x11 & instr_7_9=0x291>>7 & instr_12_15=0xD & Ab10 & Ax6 & Ax5
+{
+	SetAccAndFlag(Ax5, Ab10 | Ax6);
+}
+
+ins:"or" Ax8, Bx1, Ax0 is instr_2_7=0xA4>>2 & instr_9_15=0xD4A4>>9 & Ax8 & Bx1 & Ax0
+{
+	SetAccAndFlag(Ax0, Ax8 | Bx1);
+}
+
+ins:"or" Bx10, Bx1, Ax0 is instr_2_9=0x3C4>>2 & instr_11_15=0xD3C4>>11 & Bx10 & Bx1 & Ax0
+{
+	SetAccAndFlag(Ax0, Bx1 | Bx10);
+}
+
+ins:"add" Ab10, Bx0 is instr_1_9=0x2DA>>1 & instr_12_15=0xD & Ab10 & Bx0
+{ local tmp:8; Add40(tmp, Bx0, Ab10); SatAndSetAccAndFlag(Bx0, tmp); }
+ins:"add" Bx1, Ax0 is instr_2_15=0x5DF0>>2 & Bx1 & Ax0
+{ local tmp:8; Add40(tmp, Ax0, Bx1); SatAndSetAccAndFlag(Ax0, tmp); }
+ins:"add" p1, Ax0 is instr_1_15=0xD782>>1 & p1 & Ax0 & PToBus40 [ pname=1; ]
+{ local tmp:8; Add40(tmp, Ax0, PToBus40); SatAndSetAccAndFlag(Ax0, tmp); }
+ins:"add" Px1, Bx0 is instr_2_15=0x5DF8>>2 & Px1 & Bx0 & PToBus40 [ pname=Px1; ]
+{ local tmp:8; Add40(tmp, Bx0, PToBus40); SatAndSetAccAndFlag(Bx0, tmp); }
+
+ins:"sub" Ab3, Bx8 is instr_0_2=0x1 & instr_5_7=0x61>>5 & instr_9_15=0x8A61>>9 & Ab3 & Bx8
+{ local tmp:8; Sub40(tmp, Bx8, Ab3); SatAndSetAccAndFlag(Bx8, tmp); }
+ins:"sub" Bx4, Ax3 is instr_0_2=0x1 & instr_5_15=0x8861>>5 & Bx4 & Ax3
+{ local tmp:8; Sub40(tmp, Ax3, Bx4); SatAndSetAccAndFlag(Ax3, tmp); }
+
+ins2:"bkrep" Imm8, BkrepAddr16 is instr_8_15=0x5C & Imm8 & Lc; BkrepAddr16 & BkrepAddr16M1 & BkrepAddr16M2
+[
+	bkrepaddr = inst_start + 2; lpmark = 1; lpmark2 = 1;
+	bcn = bcn + 1; globalset(bkrepaddr, bcn);
+	globalset(BkrepAddr16M1, bkrepaddr); globalset(BkrepAddr16M1, lpmark);
+	globalset(BkrepAddr16M2, bkrepaddr); globalset(BkrepAddr16M2, lpmark2);
+] { Lc = zext(Imm8); }
+
+ins2:"bkrep" RegSrc, BkrepAddr18 is (instr_7_15=0x5D00>>7 & RegSrc & Reg0 & Lc) ... & BkrepAddr18 & BkrepAddr18M1 & BkrepAddr18M2
+[
+	regname_src = Reg0;
+	bkrepaddr = inst_start + 2; lpmark = 1; lpmark2 = 1;
+	bcn = bcn + 1; globalset(bkrepaddr, bcn);
+	globalset(BkrepAddr18M1, bkrepaddr); globalset(BkrepAddr18M1, lpmark);
+	globalset(BkrepAddr18M2, bkrepaddr); globalset(BkrepAddr18M2, lpmark2);
+]
+{ Lc = RegSrc; }
+
+ins2:"bkrep" r6, BkrepAddr18_2 is (instr_2_15=0x8FDC>>2 & r6 & Lc) ... & BkrepAddr18_2 & BkrepAddr18_2M1 & BkrepAddr18_2M2
+[
+	bkrepaddr = inst_start + 2; lpmark = 1; lpmark2 = 1;
+	bcn = bcn + 1; globalset(bkrepaddr, bcn);
+	globalset(BkrepAddr18_2M1, bkrepaddr); globalset(BkrepAddr18_2M1, lpmark);
+	globalset(BkrepAddr18_2M2, bkrepaddr); globalset(BkrepAddr18_2M2, lpmark2);
+] { Lc = r6; }
+
+# TODO: Implement BKREPRST/BKREPSTO? Use custom pcodeops?
+ins:"bkreprst ["sp"]" is instr_2_15=0x5F48>>2 & sp
+{
+	local tmp:4;
+	PopDouble(tmp);
+}
+
+ins:"bkrepsto ["sp"]" is instr_3_15=0x9468>>3 & sp
+{
+	PushDouble(0);
+}
+
+ins:"banke" Banke is instr_6_15=0x4B80>>6 & Banke { build Banke; }
+
+ins2:"br"^Cond Address18 is (instr_6_15=0x4180>>6 & Cond) ... & Address18
+{
+	build Cond;
+	goto Address18;
+}
+
+ins:"brr"^Cond RelAddr7 is instr_11_15=0x5000>>11 & Cond & RelAddr7
+{
+	build Cond;
+	goto RelAddr7;
+}
+
+ins:"break" is instr_word=0xD3C0 [ bcn = bcn - 1; globalset(inst_next, bcn); ]
+{
+	# All break does is adjust bcn... since that's handled in disassembly, this is a NOP
+}
+
+ins2:"call"^Cond Address18 is (instr_6_15=0x41C0>>6 & Cond) ... & Address18
+{
+	build Cond;
+	PushDouble(inst_next);
+	call Address18;
+}
+
+ins:"calla" Axl8 is instr_0_7=0x80 & instr_9_15=0xD480>>9 & Axl8
+{
+	PushDouble(inst_next);
+	call [Axl8];
+}
+
+ins:"calla" Ax4 is instr_0_3=0x1 & instr_5_15=0xD381>>5 & Ax4
+{
+	PushDouble(inst_next);
+	local target:4 = Ax4:4;
+	call [target];
+}
+
+ins:"callr"^Cond RelAddr7 is instr_11_15=0x1000>>11 & Cond & RelAddr7
+{
+	build Cond;
+	PushDouble(inst_next);
+	call RelAddr7;
+}
+
+ins:"cntx.s" is instr_word=0xD380 { CntxStore(); }
+ins:"cntx.r" is instr_word=0xD390 { CntxRestore(); }
+
+ins:"ret"^Cond is instr_4_15=0x458 & Cond
+{
+	build Cond;
+	local tmp:4;
+	PopDouble(tmp);
+	return [tmp];
+}
+
+ins:"reti"^Cond is instr_4_15=0x45C & Cond
+{
+	build Cond;
+	IntrEnable();
+	local tmp:4;
+	PopDouble(tmp);
+	return [tmp];
+}
+
+ins:"retic"^Cond is instr_4_15=0x45D & Cond
+{
+	build Cond;
+	IntrEnable();
+	CntxRestore();
+	local tmp:4;
+	PopDouble(tmp);
+	return [tmp];
+}
+
+ins:"rets" Imm8 is instr_8_15=0x09 & Imm8
+{
+    local tmp:4;
+    PopDouble(tmp);
+    sp = sp + zext(Imm8);
+    return [tmp];
+}
+
+ins:"load" Imm2, "ps" is instr_2_15=0x4D80>>2 & Imm2
+{
+	ps0 = Imm2 & 0x3;
+}
+
+ins:"load" Imm7s, stepi is instr_7_15=0xDB80>>7 & Imm7s & stepi
+{
+	stepi = Imm7s;
+}
+
+ins:"load" Imm7s, stepj is instr_7_15=0xDF80>>7 & Imm7s & stepj
+{
+	stepj = Imm7s;
+}
+
+ins:"load" Imm8, page is instr_8_15=0x04 & Imm8 & page [ page_scratch=0; globalset(inst_next, page_scratch); ]
+{
+	page = Imm8;
+}
+
+ins:"load" Imm4_0, "ps01" is instr_4_15=0x1 & Imm4_0
+{
+	ps0 = Imm4_0 & 0x3; ps1 = Imm4_0 >> 2;
+}
+
+# TODO: push/pop Px causes terrible decompilation artifacts since the firmware does these instructions in a BKREP loop
+# (see https://github.com/NationalSecurityAgency/ghidra/issues/6002)
+ins2:"push" Imm16 is instr_word=0x5F40; Imm16 { PushWord(Imm16); }
+ins:"push" RegSrc is instr_5_15=0x5E40>>5 & Reg0 & RegSrc [ regname_src = Reg0; ] { PushWord(RegSrc); }
+ins:"push" Abe1 is instr_3_15=0xD7C8>>3 & Abe1 { local tmp:2 = zext(Abe1); PushWord(tmp); }
+ins:"push" ArArpSttMod0Read is instr_4_15=0xD3D & ArArpSttMod0Read { PushWord(ArArpSttMod0Read); }
+ins:"push" Px1 is instr_2_15=0xD78C>>2 & Px1 {}
+ins:"push" r6 is instr_0_4=0x17 & instr_6_15=0xD4D7>>6 & r6 { PushWord(r6); }
+ins:"push" repc is instr_2_15=0xD7F8>>2 & repc { PushWord(repc); }
+ins:"push" x0 is instr_0_4=0x14 & instr_6_15=0xD4D4>>6 & x0 { PushWord(x0); }
+ins:"push" x1 is instr_0_4=0x15 & instr_6_15=0xD4D5>>6 & x1 { PushWord(x1); }
+ins:"push" y1 is instr_0_4=0x16 & instr_6_15=0xD4D6>>6 & y1 { PushWord(y1); }
+ins:"pusha" Ax6 is instr_2_5=0x1 & instr_7_15=0x4384>>7 & Ax6 { PushDouble(Ax6:4); }
+ins:"pusha" Bx1 is instr_2_15=0xD788>>2 & Bx1 { PushDouble(Bx1:4); }
+
+ins:"pop" RegDst is instr_5_15=0x5E60>>5 & Reg0 & RegDst [ regname_dst = Reg0; ] { PopWord(bus16); build RegDst; }
+ins:"pop" ArArpSttMod8Write is instr_0_7=0xC7 & instr_12_15=0x8 & ArArpSttMod8Write { PopWord(bus16); build ArArpSttMod8Write; }
+ins:"pop" Abe0 is instr_2_15=0x47B4>>2 & Abe0 { local tmp:2; PopWord(tmp); Abe0 = tmp:1; }
+ins:"pop" Px0 is instr_1_15=0xD496>>1 & Px0 {}
+ins:"pop" r6 is instr_1_15=0x24>>1 & r6 { PopWord(r6); }
+ins:"pop" repc is instr_2_15=0xD7F0>>2 & repc { PopWord(repc); }
+ins:"pop" x0 is instr_word=0xD494 & x0 { PopWord(x0); }
+ins:"pop" x1 is instr_word=0xD495 & x1 { PopWord(x1); }
+ins:"pop" y1 is instr_1_15=0x2 & y1 { PopWord(y1); }
+ins:"popa" Ab0 is instr_2_15=0x47B0>>2 & Ab0 { local tmp:4; PopDouble(tmp); SetAccAndFlag(Ab0, sext(tmp)); }
+
+ins:"rep" Imm8 is instr_8_15=0xC & Imm8 [rep = 1; globalset(inst_next, rep); ] { repc = zext(Imm8); }
+ins:"rep" RegSrc is instr_5_15=0x0D00>>5 & RegSrc & Reg0 [ regname_src=Reg0; rep = 1; globalset(inst_next, rep); ] { repc = RegSrc; }
+ins:"rep" r6 is instr_1_15=0x0002>>1 & r6 [rep = 1; globalset(inst_next, rep); ] { repc = r6; }
+
+ins:"shfc"^Cond Ab10, Ab5 is instr_4_4=0x0 & instr_7_9=0x280>>7 & instr_12_15=0xD & Ab10 & Ab5 & Cond
+{
+	build Cond;
+	ShiftGen40(Ab5, Ab10, sv);
+}
+
+ins:"shfi" Ab10, Ab7, Imm6s is instr_5_5=0x0 & instr_6_6=0x1 & instr_9_9=0x1 & instr_12_15=0x9 & Ab10 & Ab7 & Imm6s
+{
+	ShiftLeft40(Ab7, Ab10, Imm6s);
+}
+
+ins:"shfi" Ab10, Ab7, Imm6s is instr_5_5=0x1 & instr_6_6=0x1 & instr_9_9=0x1 & instr_12_15=0x9 & Ab10 & Ab7 & Imm6s
+{
+	ShiftRight40(Ab7, Ab10, -Imm6s);
+}
+
+ins:"tstb" MemImm8, Imm4_8 is instr_12_15=0xF & MemImm8 & Imm4_8 { fz = ((MemImm8 >> Imm4_8) & 0x1) != 0; }
+ins:"tstb" MemRnStep, Imm4_8 is instr_12_15=0x9 & instr_5_7=0x1 & MemRnStep & Imm4_8 & StepMode3 [ stepmode=StepMode3; ]
+{
+	fz = ((MemRnStep >> Imm4_8) & 0x1) != 0;
+}
+ins:"tstb" RegSrc, Imm4_8 is instr_12_15=0x9 & instr_5_7=0x0 & instr_0_4!=$(OPREG_A0) & Reg0 & RegSrc & Imm4_8 [ regname_src = Reg0; ]
+{
+	fz = ((RegSrc >> Imm4_8) & 0x1) != 0;
+}
+ins:"tstb" r6, Imm4_8 is instr_12_15=0x9 & instr_0_7=0x18 & r6 & Imm4_8 { fz = ((r6 >> Imm4_8) & 0x1) != 0; }
+
+ins:"and" Ab2, Ab0, Ax12 is instr_4_11=0x77 & instr_13_15=0x6770>>13 & Ab2 & Ab0 & Ax12 { SetAccAndFlag(Ax12, Ab2 & Ab0); }
+
+ins:"dint" is instr_word=0x43C0 { IntrDisable(); }
+ins:"eint" is instr_word=0x4380 { IntrEnable(); }
+
+ins:"exp" Bx0 is instr_1_15=0x9460>>1 & Bx0 { sv = Exp(Bx0); }
+
+with ins: instr_5_15=0x9440>>5
+{
+	:"exp" a0 is Reg0=$(OPREG_A0) & a0 { sv = Exp(a0); }
+	:"exp" a1 is Reg0=$(OPREG_A1) & a1 { sv = Exp(a1); }
+	:"exp" RegSrc is Reg0 & RegSrc [ regname_src=Reg0; ] { sv = Exp(RegSrc); }
+}
+
+ins:"modr" RnStep is instr_5_15=0x0080>>5 & RnStep & StepMode3 [ stepmode = StepMode3; ] { local addr:2 = RnStep; fr = addr == 0; }
+ins:"modr" RnStep is instr_3_15=0x4990>>3 & RnStep [ stepmode = 4; ] { local addr:2 = RnStep; fr = addr == 0; }
+ins:"modr" RnStep is instr_3_15=0x5DA0>>3 & RnStep [ stepmode = 5; ] { local addr:2 = RnStep; fr = addr == 0; }
+
+ins:"modr" ArpStepi, ArpStepj, "ee" is instr_2_4=0x14>>2 & instr_7_9=0x294>>7 & instr_12_15=0xD &
+	ArpStepi & ArpStepj & ArpStep2_0 & ArpStep2_5 & ArpRn2_10 [ arrn=ArpRn2_10; arstep=ArpStep2_0; arstep2=ArpStep2_5; ]
+{
+	build ArpStepi; build ArpStepj;
+}
+
+ins:"lim" Ax5, Ax4 is instr_0_3=0x0 & instr_6_15=0x49C0>>6 & Ax4 & Ax5 { SetAccAndFlag(Ax4, Sat(Ax5)); }
+
+ins:"clrp0" is instr_word=0x5DFE { p0 = 0; }
+ins:"clrp1" is instr_word=0x5DFD { p1 = 0; }
+ins:"clrp" is instr_word=0x5DFF { p0 = 0; p1 = 0; }
+
+with ins: instr_0_2=0x0 & instr_5_7=0x60>>5 & instr_9_15=0x8460>>9 [ rn = 0; ]
+{
+	:"max.ge" a0 "^" RnStepBase is instr_8_8=0 & a0 & StepMode3 & RnStepBase [ stepmode = StepMode3; ]
+	{ local tmp:2 = RnStepBase; MaxGe40(a0, a1, tmp); }
+	:"max.ge" a1 "^" RnStepBase is instr_8_8=1 & a1 & StepMode3 & RnStepBase [ stepmode = StepMode3; ]
+	{ local tmp:2 = RnStepBase; MaxGe40(a1, a0, tmp); }
+}
+
+with ins: instr_0_2=0x0 & instr_5_7=0x60>>5 & instr_9_15=0x8660>>9 [ rn = 0; ]
+{
+	:"max.gt" a0 "^" RnStepBase is instr_8_8=0 & a0 & StepMode3 & RnStepBase [ stepmode = StepMode3; ]
+	{ local tmp:2 = RnStepBase; MaxGt40(a0, a1, tmp); }
+	:"max.gt" a1 "^" RnStepBase is instr_8_8=1 & a1 & StepMode3 & RnStepBase [ stepmode = StepMode3; ]
+	{ local tmp:2 = RnStepBase; MaxGt40(a1, a0, tmp); }
+}
+
+with ins: instr_0_2=0x0 & instr_5_7=0x60>>5 & instr_9_15=0x8860>>9 [ rn = 0; ]
+{
+	:"min.le" a0 "^" RnStepBase is instr_8_8=0 & a0 & StepMode3 & RnStepBase [ stepmode = StepMode3; ]
+	{ local tmp:2 = RnStepBase; MinLe40(a0, a1, tmp); }
+	:"min.le" a1 "^" RnStepBase is instr_8_8=1 & a1 & StepMode3 & RnStepBase [ stepmode = StepMode3; ]
+	{ local tmp:2 = RnStepBase; MinLe40(a1, a0, tmp); }
+}
+
+with ins: instr_0_2=0x0 & instr_5_7=0x60>>5 & instr_9_15=0x8A60>>9 [ rn = 0; ]
+{
+	:"min.lt" a0 "^" RnStepBase is instr_8_8=0 & a0 & StepMode3 & RnStepBase [ stepmode = StepMode3; ]
+	{ local tmp:2 = RnStepBase; MinLt40(a0, a1, tmp); }
+	:"min.lt" a1 "^" RnStepBase is instr_8_8=1 & a1 & StepMode3 & RnStepBase [ stepmode = StepMode3; ]
+	{ local tmp:2 = RnStepBase; MinLt40(a1, a0, tmp); }
+}
+
+ins:"max.ge" Ax8, "["RnStepBase"]" is instr_0_2=0x0 & instr_5_7=0x60>>5 & instr_9_15=0x8060>>9 & Ax8 & StepMode3 & RnStepBase [ rn = 0; stepmode = StepMode3; ]
+{ local addr:2 = RnStepBase; local tmp:8 = sext(*[data]:2 addr); MaxGe40(Ax8, tmp, addr); }
+ins:"max.gt" Ax8, "["RnStepBase"]" is instr_0_2=0x0 & instr_5_7=0x60>>5 & instr_9_15=0x8260>>9 & Ax8 & StepMode3 & RnStepBase [ rn = 0; stepmode = StepMode3; ]
+{ local addr:2 = RnStepBase; local tmp:8 = sext(*[data]:2 addr); MaxGt40(Ax8, tmp, addr); }
+ins:"min.le" Ax3, "["RnStepBase"]" is instr_2_2=0x0 & instr_4_15=0x47A & Ax3 & StepMode0 & RnStepBase [ rn = 0; stepmode = StepMode0; ]
+{ local addr:2 = RnStepBase; local tmp:8 = sext(*[data]:2 addr); MinLe40(Ax3, tmp, addr); }
+ins:"min.lt" Ax3, "["RnStepBase"]" is instr_2_2=0x1 & instr_4_15=0x47A & Ax3 & StepMode0 & RnStepBase [ rn = 0; stepmode = StepMode0; ]
+{ local addr:2 = RnStepBase; local tmp:8 = sext(*[data]:2 addr); MinLt40(Ax3, tmp, addr); }
+
+ins:"cmp" Ax1, Bx0 is instr_2_15=0x4D8C>>2 & Ax1 & Bx0 { local tmp:8; Sub40(tmp, Bx0, Ax1); SetAccFlag(tmp); }
+ins:"cmp" b0, b1 is instr_word=0xD483 & b0 & b1 { local tmp:8; Sub40(tmp, b1, b0); SetAccFlag(tmp); }
+ins:"cmp" b1, b0 is instr_word=0xD583 & b1 & b0 { local tmp:8; Sub40(tmp, b0, b1); SetAccFlag(tmp); }
+ins:"cmp" Bx10, Ax0 is instr_1_9=0x29A>>1 & instr_11_15=0xDA9A>>11 & Bx10 & Ax0 { local tmp:8; Sub40(tmp, Ax0, Bx10); SetAccFlag(tmp); }
+
+# Merge 2-word instructions into the main table
+ins:^ins2 is lpmark2=0 & ins2 { build ins2; }
+
+# BKREP logic for 2-word instructions
+ins:^ins2 is lpmark2=1 & rep=0 & ins2 & BkrepStart & LcNext [ bcn = bcn - 1; globalset(inst_next, bcn); ] { LoopCheck(ins2, LcNext); goto BkrepStart; }
+
+# REP logic
+# REP doesn't seem to work on 2-word instructions...
+:^ins is lpmark=0 & rep=1 & ins { LoopCheck(ins, repc); goto inst_start; }
+
+# BKREP logic
+:^ins is lpmark=1 & rep=0 & ins & BkrepStart & LcNext [ bcn = bcn - 1; globalset(inst_next, bcn); ] { LoopCheck(ins, LcNext); goto BkrepStart; }
+
+# Regular instruction path
+:^ins is epsilon & ins { build ins; }
