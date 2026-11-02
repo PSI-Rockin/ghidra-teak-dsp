@@ -43,11 +43,6 @@ hs_err_pid*
 # vscode generated files
 *.vscode
 
-# IntelliJ Gradle auto-downloaded files
-/gradle/
-gradlew
-gradlew.bat
-
 # IntellJ junk
 /.kotlin
 
